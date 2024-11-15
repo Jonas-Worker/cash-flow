@@ -7,16 +7,19 @@ import {
   ActivityIndicator,
   Button,
   TouchableOpacity,
+  ScrollView
 } from "react-native";
 import supabase from "../supabaseClient";
 import { useRoute } from "@react-navigation/native";
 import { RouteProp } from "@react-navigation/native";
 import { PieChart } from "react-native-chart-kit";
+import { BarChart } from "react-native-chart-kit";
 import { Dimensions } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import translations from "../translations.json";
+
 import Modal from "react-native-modal";
 import { useFocusEffect } from "@react-navigation/native";
 // Define the structure of the translations
@@ -39,7 +42,10 @@ type TranslationKeys =
   | "date"
   | "overview"
   | "reset"
-  | "details";
+  | "details"
+  | "not_record"
+  | "balances";
+
 // Format the Date object into DD/MM/YY format
 const formatDate = (date: Date): string => {
   const day = date.getDate().toString().padStart(2, "0");
@@ -58,19 +64,42 @@ interface CashFlow {
 }
 
 const categoryColors: { [key: string]: string } = {
-  Salary: "#4CAF50" ,
-  Freelance: "#FF9800",
-  Gift: "#FF5722",
-  Inves: "#2196F3",
-  Other: "#9E9E9E",
-  Food: "#FFEB3B",
-  Transport: "#795548",
-  Rent: "#9C27B0",
-  Play: "#E91E63",
-  Health: "#00BCD4",
-  Study: "#673AB7",
+  Salary: "rgba(255, 255, 255, 0.15)",
+  Freelance: "rgba(255, 255, 255, 0.2)",
+  Gift: "rgba(255, 255, 255, 0.3)",
+  Inves: "rgba(255, 255, 255, 0.4)",
+  Other: "rgba(255, 255, 255, 0.5)",
+  Food: "rgba(255, 255, 255, 0.6)",
+  Transport: "rgba(255, 255, 255, 0.7)",
+  Rent: "rgba(255, 255, 255, 0.8)",
+  Play: "rgba(255, 255, 255, 0.9)",
+  Health: "rgba(255, 255, 255, 0.95)",
+  Study: "rgba(255, 255, 255, 1)",
 };
-
+const categoryTag: { [key: string]: string } = {
+    Salary: "薪水",
+    Gift: "礼物",
+    Inves: "投资",
+    Other: "其他",
+    Food: "食品",
+    Transport: "交通",
+    Rent: "租金",
+    Play: "娱乐",
+    Health: "健康",
+    Study: "学习",
+};
+const categoryTagEn: { [key: string]: string } = {
+  Salary: "Salary",
+  Gift: "Gift",
+  Inves: "Inves",
+  Other: "Other",
+  Food: "Food",
+  Transport: "Transport",
+  Rent: "Rent",
+  Play: "Play",
+  Health: "Health",
+  Study: "Study",
+};
 
 type RootParamList = {
   MainPage: { email: string };
@@ -95,7 +124,6 @@ const DisplayScreen: React.FC = () => {
   const [expenses, setExpenses] = useState(0);
   const [balance, setBalance] = useState(0);
 
-
   const loadLanguage = async () => {
     try {
       const savedLanguage = await AsyncStorage.getItem("language");
@@ -119,7 +147,7 @@ const DisplayScreen: React.FC = () => {
   const translate = (key: TranslationKeys): string => {
     return translations[language][key] || key;
   };
-  
+
   useEffect(() => {
     const fetchCashFlows = async () => {
       const { data, error } = await supabase
@@ -140,13 +168,19 @@ const DisplayScreen: React.FC = () => {
   // Filter data based on selected date
   const filteredCashFlows = cashFlows.filter((item) => {
     const createdAt = new Date(item.created_at);
-    let filterIncome = 0
     if (selectedDate) {
-      
       return formatDate(createdAt) === formatDate(selectedDate);
     }
     return true; // If no date is selected, show all data
   });
+
+  const filterIncome = filteredCashFlows.reduce((acc, item) => {
+    return item.cash_in ? acc + item.cash_in : acc;
+  }, 0);
+
+  const filterExpenses = filteredCashFlows.reduce((acc, item) => {
+    return item.cash_out ? acc + item.cash_out : acc;
+  }, 0);
   // Calculate balances
   const calculateTotals = () => {
     let totalIncome = 0;
@@ -164,26 +198,6 @@ const DisplayScreen: React.FC = () => {
     calculateTotals();
   }, [cashFlows]);
 
-  const renderItem = ({ item }: { item: CashFlow }) => (
-    <View style={styles.item}>
-      {item.cash_in !== 0 ? (
-        <>
-          <Text style={styles.text}>{translate("income")}: {item.cash_in}</Text>
-          <Text style={styles.text}>{translate("category")}: {item.category}</Text>
-          <Text style={styles.text}>{translate("remark")}: {item.remark}</Text>
-          <Text style={styles.text}>{translate("date")}: {item.created_at}</Text>
-        </>
-      ) : item.cash_out ? (
-        <>
-          <Text style={styles.text}>{translate("expenses")}: {item.cash_out}</Text>
-          <Text style={styles.text}>{translate("category")}: {item.category}</Text>
-          <Text style={styles.text}>{translate("remark")}: {item.remark}</Text>
-          <Text style={styles.text}>{translate("date")}: {item.created_at}</Text>
-        </>
-      ) : null}
-    </View>
-  );
-
   if (loading) {
     return <ActivityIndicator size="large" color="#0000ff" />;
   }
@@ -192,37 +206,54 @@ const DisplayScreen: React.FC = () => {
   const chartData = [
     {
       name: translate("income"),
-      population: income,
-      color: "rgba(50, 205, 50, 1)",
-      legendFontColor: "#000000",
+      population: filterIncome,
+      color: "rgba(255, 255, 255, 0.3)",
+      legendFontColor: "#fff",
       legendFontSize: 15,
     },
     {
       name: translate("expenses"),
-      population: expenses,
-      color: "rgba(255, 99, 71, 1)",
-      legendFontColor: "#000000",
+      population: filterExpenses,
+      color: "rgba(255, 255, 255, 0.5)",
+      legendFontColor: "#fff",
       legendFontSize: 15,
     },
   ];
 
   const remarksCount = filteredCashFlows.reduce((acc, item) => {
-    acc[item.category] = (acc[item.category] || 0) + 1;
+    // Normalize both English and Chinese categories to the English name
+    const englishCategory = Object.keys(categoryTag).find(
+      (key) => categoryTag[key] === item.category
+    ) || item.category;
+  
+    // Aggregate count for the category (English name)
+    acc[englishCategory] = (acc[englishCategory] || 0) + 1;
+  
     return acc;
   }, {} as { [key: string]: number });
-
-  const remarksChartData = Object.entries(remarksCount).map(
-    ([remark, count]) => {
-      const color = categoryColors[remark] || "#000000";
-      return {
-        name: remark,
-        population: count,
-        color: color,
-        legendFontColor: "#000000",
-        legendFontSize: 15,
-      };
+  
+  // Function to get the category name based on the language
+  const getCategoryTag = (category: string) => {
+    if (language === "zh") {
+      return categoryTag[category] || category;
+    } else {
+      return categoryTagEn[category] || category;
     }
-  );
+  };
+  
+  const remarksChartData = Object.entries(remarksCount).map(([category, count]) => {
+    const color = categoryColors[category] || "#000000"; 
+    const tag = getCategoryTag(category); 
+    
+    return {
+      name: tag,
+      population: count,
+      color: color,
+      legendFontColor: "#fff",
+      legendFontSize: 15,
+    };
+  });
+  
 
   const showDatePicker = () => {
     setDatePickerVisible(true);
@@ -242,22 +273,48 @@ const DisplayScreen: React.FC = () => {
     setViewMode("income-expenses");
   };
 
- 
+  const chartDataBar = {
+    labels: cashFlows.map((flow) => {
+      const date = new Date(flow.created_at);
+      return isNaN(date.getTime()) ? "Invalid Date" : date.toLocaleDateString();
+    }), // Dates for the x-axis, handling invalid dates
+    datasets: [
+      {
+        data: cashFlows.map((flow) => flow.cash_in || 0), // Amounts for the y-axis, default to 0 if cash_in is missing
+      },
+    ],
+  };
+  const chartConfig = {
+    backgroundColor: "rgba(0, 0, 0, 0.1 )",
+    backgroundGradientFrom: "rgba(0, 0, 0, 0.3 )",
+    backgroundGradientTo: "rgba(255, 255, 255, 0.2 )",
+    decimalPlaces: 2,
+    color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+    style: {
+      borderRadius: 16,
+    },
+    propsForDots: {
+      r: "6",
+      strokeWidth: "2",
+      stroke: "#ffa726",
+    },
+  };
 
   return (
     <View style={styles.displayContainer}>
       <View style={styles.container}>
         <View style={styles.totalContainer}>
           <View style={styles.totalItem}>
-            <Icon name="attach-money" size={24} color="#00796b" />
+          <Text style={styles.value}>{ translate("income")}</Text>
             <Text style={styles.value}>RM {income}</Text>
           </View>
           <View style={styles.totalItem}>
-            <Icon name="payment" size={24} color="#00796b" />
+          <Text style={styles.value}>{ translate("expenses")}</Text>
             <Text style={styles.value}>RM {expenses}</Text>
           </View>
           <View style={styles.totalItem}>
-            <Icon name="account-balance-wallet" size={24} color="#00796b" />
+          <Text style={styles.value}>{ translate("balances")}</Text>
             <Text style={styles.value}>
               RM {Math.round(balance * 100) / 100}
             </Text>
@@ -269,45 +326,37 @@ const DisplayScreen: React.FC = () => {
             onPress={() => setViewMode("income-expenses")}
             style={[
               styles.toggleButton,
-              {
-                backgroundColor:
-                  viewMode === "income-expenses" ? "#00796b" : "#607d8b",
-              },
             ]}
           >
-            <Text style={styles.toggleButtonText}>{translate("overview")}</Text>
+            <Icon name="attach-money" size={20} color="#fff" />
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => setViewMode("remarks")}
             style={[
               styles.toggleButton,
-              {
-                backgroundColor: viewMode === "remarks" ? "#00796b" : "#607d8b",
-              },
             ]}
           >
-            <Text style={styles.toggleButtonText}>{translate("category")}</Text>
+            <Icon name="comment" size={20} color="#fff" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.toggleButton, { backgroundColor: "#4CAF50" }]}
+            style={styles.toggleButton}
             onPress={showDatePicker}
           >
-            <Text style={styles.toggleButtonText}>
-              {selectedDate ? formatDate(selectedDate) : translate("date")}
-            </Text>
+            <Icon name="calendar-today" size={20} color="#fff" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.toggleButton, { backgroundColor: "#FF5722" }]}
+            style={styles.toggleButton}
             onPress={resetFilter}
           >
-            <Text style={styles.toggleButtonText}>{translate("reset")}</Text>
+            <Icon name="refresh" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
 
         {/* Pie Chart */}
+        <View style={styles.bodyPieChart}>
         <PieChart
           data={viewMode === "income-expenses" ? chartData : remarksChartData}
           width={Dimensions.get("window").width - 40}
@@ -324,14 +373,20 @@ const DisplayScreen: React.FC = () => {
           backgroundColor="transparent"
           paddingLeft="15"
         />
-
-        {/* FlatList for displaying individual records */}
-        <Text style={styles.detailsText}>{translate("details")}:</Text>
-        <FlatList
-          data={filteredCashFlows}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id.toString()}
+       <ScrollView contentContainerStyle={{ alignItems: "center", padding: 20 }}>
+        <Text style={{ fontSize: 18, marginBottom: 10 }}>Cash Flow Chart</Text>
+        <BarChart
+          data={chartDataBar}
+          width={Dimensions.get("window").width - 40} // Width of the bar chart
+          height={220} // Height of the bar chart
+          chartConfig={chartConfig}
+          verticalLabelRotation={30} // Rotating the labels to fit better
+          yAxisLabel="RM" // Label for the y-axis (currency symbol)
+          yAxisSuffix=" " // Add any suffix you need (e.g., "USD")
         />
+      </ScrollView>
+        </View>
+
       </View>
 
       {/* Date Picker */}
@@ -348,7 +403,7 @@ const DisplayScreen: React.FC = () => {
 const styles = StyleSheet.create({
   displayContainer: {
     flex: 1,
-    backgroundColor: "#fce9db",
+    backgroundColor: "#000000",
   },
   container: {
     flex: 1,
@@ -382,7 +437,7 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 18,
-    color: "#00796b",
+    color: "#fff",
     fontWeight: "bold",
   },
   detailsText: {
@@ -397,15 +452,27 @@ const styles = StyleSheet.create({
   },
   toggleButton: {
     flex: 1,
-    marginHorizontal: 5,
+    paddingHorizontal: 10,
     paddingVertical: 10,
     borderRadius: 20,
+    marginHorizontal: 5,
     alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderWidth: 2,
+    borderColor: "rgba(255,255, 255,0.5)",
   },
   toggleButtonText: {
     color: "#ffffff",
     fontSize: 10,
     textAlign: "center",
+  },
+  notRecord: {
+    alignItems: "center",
+  },
+  bodyPieChart: {
+    borderRadius: 20,
+    marginHorizontal: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
 });
 

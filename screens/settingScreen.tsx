@@ -6,6 +6,7 @@ import {
   Alert,
   TouchableOpacity,
   StyleSheet,
+  SafeAreaView
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import translations from "../translations.json";
@@ -82,7 +83,7 @@ const SettingsScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.languageButtonsContainer}>
         <TouchableOpacity
           style={styles.languageButton}
@@ -125,7 +126,7 @@ const SettingsScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -148,7 +149,7 @@ const styles = StyleSheet.create({
     right: 0,
     position: "absolute",
     flexDirection: "row",
-    marginTop: 20,
+    marginTop: 40,
     marginHorizontal: 10,
   },
   languageButton: {

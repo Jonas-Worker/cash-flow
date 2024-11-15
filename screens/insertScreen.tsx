@@ -92,16 +92,19 @@ const InsertScreen = ({ navigation }: any) => {
       cashIn.trim() === "" || isNaN(Number(cashIn)) ? "0" : cashIn;
     const validCashOut =
       cashOut.trim() === "" || isNaN(Number(cashOut)) ? "0" : cashOut;
-
+  
     const category = remarkSubCategory;
-
+  
     if (!remarkSubCategory) {
       setError("Please select a valid category.");
       return;
     }
+  
     const currentDate =
       date.trim() === "" ? new Date().toLocaleDateString("en-CA") : date;
+  
     try {
+      // Insert the new cash flow data
       const { data, error } = await supabase.from("cash_flows").insert([
         {
           remark: remark,
@@ -118,15 +121,44 @@ const InsertScreen = ({ navigation }: any) => {
             validCashOut.trim() !== ""
               ? validCashOut
               : "0",
-
+  
           created_at: currentDate,
           email: email,
         },
       ]);
-
+  
       if (error) {
         console.error(error);
         setError("Error inserting data: " + error.message);
+        return;
+      }
+  
+      // After inserting, sum up the cash_out for the specific date
+      const { data: cashFlows, error: fetchError } = await supabase
+        .from("cash_flows")
+        .select("cash_out")
+        .eq("created_at", currentDate)
+        .eq("email", email);
+  
+      if (fetchError) {
+        console.error(fetchError);
+        setError("Error fetching cash flows: " + fetchError.message);
+        return;
+      }
+  
+      // Calculate the total cash_out for the given date
+      const totalCashOut = cashFlows.reduce((acc, item) => acc + parseFloat(item.cash_out), 0);
+  
+      // Update the daily_expenses column with the sum of cash_out
+      const { error: updateError } = await supabase
+        .from("cash_flows")
+        .update({ daily_expenses: totalCashOut })
+        .eq("created_at", currentDate)
+        .eq("email", email);
+  
+      if (updateError) {
+        console.error(updateError);
+        setError("Error updating daily expenses: " + updateError.message);
       } else {
         navigation.goBack();
       }
@@ -135,6 +167,7 @@ const InsertScreen = ({ navigation }: any) => {
       setError("An error occurred while submitting the data");
     }
   };
+  
 
   const handleDateConfirm = (selectedDate: any) => {
     setDate(selectedDate.toLocaleDateString());

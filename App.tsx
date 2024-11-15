@@ -1,5 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect } from "react";
+import { StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from './screens/loginScreen';
@@ -12,6 +13,7 @@ import RegisterScreen from './screens/registerScreen';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import translations from "./translations.json";
 import Modal from "react-native-modal";
+import { opacity } from 'react-native-reanimated/lib/typescript/Colors';
 
 const Stack = createStackNavigator();
 type Language = "en" | "zh";
@@ -33,58 +35,64 @@ const App = () => {
     });
   }, [AsyncStorage]);
   return (
-<NavigationContainer>
-      <Stack.Navigator initialRouteName="Login">
-        <Stack.Screen 
-          name="Login" 
-          component={LoginScreen} 
-          options={{ headerShown: false }} 
-        />
-        <Stack.Screen 
-          name="Insert" 
-          component={InsertScreen} 
-          options={{
-            headerTitleAlign: 'center',
-          }}
-        />
-        <Stack.Screen 
-          name="Record" 
-          component={DisplayScreen} 
-          options={{
-            headerTitleAlign: 'center',
-          }}
-        />
-        <Stack.Screen 
-          name="MainPage" 
-          component={MainScreen} 
-          options={{
-            headerShown: false,
-            headerTitleAlign: 'center',
-          }}
-        />
-        <Stack.Screen 
-          name="Profile" 
-          component={ProfileScreen} 
-          options={{
-            headerTitleAlign: 'center',
-          }}
-        />
-        <Stack.Screen 
-          name="Settings" 
-          component={SettingsScreen} 
-          options={{
-            headerTitleAlign: 'center',
-          }}
-        />
-        <Stack.Screen 
-          name="Register" 
-          component={RegisterScreen} 
-          options={{
-            headerTitleAlign: 'center',
-          }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <>
+      {/* Set the StatusBar to ensure it's visible and properly styled */}
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={false} />
+      
+      <NavigationContainer>
+        <Stack.Navigator initialRouteName="Login">
+          <Stack.Screen 
+            name="Login" 
+            component={LoginScreen} 
+            options={{ headerShown: false }} 
+          />
+          <Stack.Screen 
+            name="Insert" 
+            component={InsertScreen} 
+            options={{
+              headerTitleAlign: 'center',
+            }}
+          />
+          <Stack.Screen 
+            name="Record" 
+            component={DisplayScreen} 
+            options={{
+              headerTitleAlign: 'center',
+            }}
+          />
+          <Stack.Screen 
+            name="MainPage" 
+            component={MainScreen} 
+            options={{
+              headerShown: false,
+              headerTitleAlign: 'center',
+            }}
+          />
+          <Stack.Screen 
+            name="Profile" 
+            component={ProfileScreen} 
+            options={{
+              headerTitleAlign: 'center',
+            }}
+          />
+          <Stack.Screen 
+            name="Settings" 
+            component={SettingsScreen} 
+            options={{
+              headerTitleAlign: 'center',
+              headerTransparent: true,
+            }}
+          />
+          <Stack.Screen 
+            name="Register" 
+            component={RegisterScreen} 
+            options={{
+              headerTitleAlign: 'center',
+            }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </>
   );
 };
 

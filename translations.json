@@ -35,7 +35,9 @@
     "submit": "Submit",
     "stock": "Stock",
     "reward": "Reward",
-    "saving": "Saving"
+    "saving": "Saving",
+    "not_record": "Not Record",
+    "balances": "Balances"
   },
   "zh": {
     "settingsScreen": "设置界面",
@@ -73,6 +75,8 @@
     "submit": "提交",
     "reward": "奖励",
     "saving": "储蓄",
-    "stock": "股票"
+    "stock": "股票",
+    "not_record": "没有记录",
+    "balances": "余额"
   }
 }
