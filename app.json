@@ -20,7 +20,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.jonaslee12.mobileapp"
+      "package": "com.jonaslee12.mobileapp",
+      "newArchEnabled": true 
     },
     "web": {
       "favicon": "./assets/favicon.png",

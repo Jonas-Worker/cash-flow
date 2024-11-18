@@ -198,10 +198,6 @@ const DisplayScreen: React.FC = () => {
     calculateTotals();
   }, [cashFlows]);
 
-  if (loading) {
-    return <ActivityIndicator size="large" color="#0000ff" />;
-  }
-
   // Pie Chart Data for Income & Expenses
   const chartData = [
     {

@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     position: "relative",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fce9db",
+    backgroundColor: "#FFFFFF",
   },
   title: {
     fontSize: 18,
@@ -154,17 +154,19 @@ const styles = StyleSheet.create({
   },
   languageButton: {
     padding: 10,
-    backgroundColor: "#d3d3d3",
     borderRadius: 5,
+    borderWidth: 2,
+    borderColor: '#f8b400',
   },
   languageButtonText: {
-    color: "#fff",
+    color: "#000",
     fontSize: 16,
   },
   logoutButton: {
-    backgroundColor: "#ff6f61",
     borderRadius: 20,
     marginBottom: 10,
+    borderWidth: 2,
+    borderColor: '#f8b400',
   },
   logoutButtonText: {
     padding: 15,
@@ -191,6 +193,8 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     backgroundColor: "#00BFFF",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: '#f8b400',
   },
   buttonText: {
     fontSize: 15,
