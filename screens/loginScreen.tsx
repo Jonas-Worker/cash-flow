@@ -6,6 +6,7 @@ import {
   Text,
   StyleSheet,
   Alert,
+  SafeAreaView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import supabase from "../supabaseClient";
@@ -62,7 +63,7 @@ const LoginScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.loginContainer}>
+    <SafeAreaView style={styles.loginContainer}>
       <View style={styles.container}>
         <Text style={styles.loginTitle}>Login</Text>
         <View style={styles.bodyContainer}>
@@ -91,7 +92,7 @@ const LoginScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

@@ -37,7 +37,12 @@
     "reward": "Reward",
     "saving": "Saving",
     "not_record": "Not Record",
-    "balances": "Balances"
+    "balances": "Balances",
+    "transfer": "Transfer",
+    "budget" : " Budget",
+    "monthlyBudget": "Monthly Budget",
+    "incomeType": " Income Category",
+     "expensesType": " Expenses Category"
   },
   "zh": {
     "settingsScreen": "设置界面",
@@ -77,6 +82,11 @@
     "saving": "储蓄",
     "stock": "股票",
     "not_record": "没有记录",
-    "balances": "余额"
+    "balances": "余额",
+    "transfer": "转帐",
+    "budget" : " 预算",
+    "monthlyBudget": "每月预算",
+    "incomeType": "收入分类",
+    "expensesType": "支出分类"
   }
 }

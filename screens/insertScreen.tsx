@@ -9,6 +9,7 @@ import {
   Modal,
   Alert,
   ScrollView,
+  SafeAreaView,
 } from "react-native";
 import supabase from "../supabaseClient";
 import { useRoute } from "@react-navigation/native";
@@ -18,6 +19,8 @@ import DateTimePickerModal from "react-native-modal-datetime-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import translations from "../translations.json";
 import { useFocusEffect } from "@react-navigation/native";
+import { evaluate } from 'mathjs';
+
 type RootParamList = {
   MainPage: { email: string };
   Profile: { email: string };
@@ -49,11 +52,10 @@ type TranslationKeys =
   | "stock"
   | "reward"
   | "saving"
-  | "submit";
+  | "submit"
+  | "transfer";
 
 const InsertScreen = ({ navigation }: any) => {
-  const [cashIn, setCashIn] = useState("");
-  const [cashOut, setCashOut] = useState("");
   const [date, setDate] = useState("");
   const [remark, setRemark] = useState("");
   const [remarkCategory, setRemarkCategory] = useState<
@@ -66,11 +68,13 @@ const InsertScreen = ({ navigation }: any) => {
   const email = route.params?.email || "No email provided";
   const [language, setLanguage] = useState<Language>("en");
   const [modalVisible, setModalVisible] = useState(false);
+  const [modalVisibleSaving, setModalVisibleSaving] = useState(false);
   const [modalVisibleFeature, setModalVisibleFeature] = useState(false);
   const [dailyLimit, setDailyLimit] = useState("");
+  const [targetValue , setTargetValue] = useState("");
   const [input, setInput] = useState("");
-  const [result, setResult] = useState("");
-
+  const currentDate = new Date();
+  const timeOnly = currentDate.toTimeString().split(" ")[0];
   const loadLanguage = async () => {
     try {
       const savedLanguage = await AsyncStorage.getItem("language");
@@ -97,9 +101,9 @@ const InsertScreen = ({ navigation }: any) => {
   const handleSubmit = async () => {
     setError("");
     const validCashIn =
-      cashIn.trim() === "" || isNaN(Number(cashIn)) ? "0" : cashIn;
+    input.trim() === "" || isNaN(Number(input)) ? "0" : input;
     const validCashOut =
-      cashOut.trim() === "" || isNaN(Number(cashOut)) ? "0" : cashOut;
+    input.trim() === "" || isNaN(Number(input)) ? "0" : input;
 
     const category = remarkSubCategory;
 
@@ -107,7 +111,6 @@ const InsertScreen = ({ navigation }: any) => {
       setError("Please select a valid category.");
       return;
     }
-
     const currentDate =
       date.trim() === "" ? new Date().toLocaleDateString("en-CA") : date;
 
@@ -132,6 +135,7 @@ const InsertScreen = ({ navigation }: any) => {
 
           created_at: currentDate,
           email: email,
+          time:timeOnly,
         },
       ]);
 
@@ -183,7 +187,7 @@ const InsertScreen = ({ navigation }: any) => {
     try {
       // Step 1: Check if the email already exists in the table
       const { data: existingData, error: fetchError } = await supabase
-        .from("daily_expenses")
+        .from("planning")
         .select("*")
         .eq("email", email);
 
@@ -198,7 +202,7 @@ const InsertScreen = ({ navigation }: any) => {
         // Check if the array is not empty
         // Step 2: If the email exists, update the existing record
         const { error: updateError } = await supabase
-          .from("daily_expenses")
+          .from("planning")
           .update({ limit_value: dailyLimit })
           .eq("email", email);
 
@@ -206,7 +210,7 @@ const InsertScreen = ({ navigation }: any) => {
       } else {
         // Step 3: If the email does not exist, insert a new record
         const { error: insertError } = await supabase
-          .from("daily_expenses")
+          .from("planning")
           .insert([
             {
               email: email,
@@ -221,7 +225,7 @@ const InsertScreen = ({ navigation }: any) => {
       if (operationError) {
         Alert.alert("Error", "Failed to update or insert. Please try again.");
       } else {
-        Alert.alert("Success", "Daily limit has been set up.");
+        Alert.alert("Success", "Budget have setup.");
         setModalVisible(false);
         setDailyLimit("");
       }
@@ -230,39 +234,83 @@ const InsertScreen = ({ navigation }: any) => {
       Alert.alert("Error", "An error occurred while submitting the data.");
     }
   };
+
+  const handleSaveTarget = async ()=> {
+    try {
+      // Step 1: Check if the email already exists in the table
+      const { data: existingData, error: fetchError } = await supabase
+        .from("planning")
+        .select("*")
+        .eq("email", email);
+
+      if (fetchError && fetchError.code !== "PGRST116") {
+        // Handle fetch error if it's not a "not found" error
+        Alert.alert("Error", "An error occurred while checking the email.");
+        return;
+      }
+
+      let operationError;
+      if (existingData && existingData.length > 0) {
+        // Check if the array is not empty
+        // Step 2: If the email exists, update the existing record
+        const { error: updateError } = await supabase
+          .from("planning")
+          .update({ target_value: targetValue })
+          .eq("email", email);
+
+        operationError = updateError;
+      } else {
+        // Step 3: If the email does not exist, insert a new record
+        const { error: insertError } = await supabase
+          .from("planning")
+          .insert([
+            {
+              email: email,
+              target_value: targetValue,
+            },
+          ]);
+
+        operationError = insertError;
+      }
+
+      // Handle any errors that occurred during the update or insert
+      if (operationError) {
+        Alert.alert("Error", "Failed to update or insert. Please try again.");
+      } else {
+        Alert.alert("Success", "Target set up.");
+        setModalVisibleSaving(false);
+        setTargetValue("");
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Error", "An error occurred while submitting the data.");
+    }
+  }
+  useEffect(() => {
+    if (remarkCategory === "Income") {
+      setInput("");
+    } else if (remarkCategory === "Expenses") {
+      setInput("");
+    }
+  },[remarkCategory])
   const handlePress = (value: string | number) => {
     if (value === "=") {
       try {
-        const calculatedResult = eval(input);
-        setResult(calculatedResult.toString());
-  
-        // Save the result based on the category
-        if (remarkCategory === "Income") {
-          setCashIn(calculatedResult.toString());
-          setCashOut("");
-        } else if (remarkCategory === "Expenses") {
-          setCashOut(calculatedResult.toString());
-          setCashIn("");
-        }
-  
-        // Update the input with the calculated result
-        setInput(calculatedResult.toString());
-      } catch (e) {
-        setResult("Error");
+        const evaluation = eval(input);
+        setInput(evaluation.toString());
+      } catch (error) {
         setInput("Error");
       }
     } else if (value === "C") {
-      setInput("");
-      setResult("");
-      setCashIn("");
-      setCashOut("");
+      setInput("");  // Clear the input
     } else if (value === "Del") {
+      // Remove the last character from input
       setInput((prev) => prev.slice(0, -1)); 
     } else {
+      // Append the value to the input
       setInput((prev) => prev + value);
     }
   };
-  
 
   const handleDateConfirm = (selectedDate: any) => {
     setDate(selectedDate.toLocaleDateString());
@@ -287,11 +335,12 @@ const InsertScreen = ({ navigation }: any) => {
     translate("rent"),
     translate("play"),
     translate("health"),
-    translate("study"),
+    translate("transfer"),
   ];
 
   return (
     <ScrollView style={styles.bodyInsertContainer}>
+      <SafeAreaView>
       <View style={styles.container}>
         <View style={styles.categoryButtons}>
           <TouchableOpacity
@@ -322,7 +371,7 @@ const InsertScreen = ({ navigation }: any) => {
             <Text style={styles.buttonText}>{translate("other")}</Text>
           </TouchableOpacity>
         </View>
-        <Text>{translate("selectSubcategory")}:</Text>
+        <Text style={{color: "#fff"}}>{translate("selectSubcategory")}:</Text>
         <View style={styles.categoryList}>
           {(remarkCategory === "Income"
             ? incomeCategories
@@ -341,7 +390,7 @@ const InsertScreen = ({ navigation }: any) => {
                 <Icon
                   name="money"
                   size={20}
-                  color="#000000"
+                  color="#fff"
                   style={styles.icon}
                 />
               )}
@@ -349,7 +398,7 @@ const InsertScreen = ({ navigation }: any) => {
                 <Icon
                   name="th-large"
                   size={20}
-                  color="#000000"
+                  color="#fff"
                   style={styles.icon}
                 />
               )}
@@ -357,7 +406,7 @@ const InsertScreen = ({ navigation }: any) => {
                 <Icon
                   name="credit-card"
                   size={20}
-                  color="#000000"
+                  color="#fff"
                   style={styles.icon}
                 />
               )}
@@ -365,7 +414,7 @@ const InsertScreen = ({ navigation }: any) => {
                 <Icon
                   name="bank"
                   size={20}
-                  color="#000000"
+                  color="#fff"
                   style={styles.icon}
                 />
               )}
@@ -373,7 +422,7 @@ const InsertScreen = ({ navigation }: any) => {
                 <Icon
                   name="gift"
                   size={20}
-                  color="#000000"
+                  color="#fff"
                   style={styles.icon}
                 />
               )}
@@ -381,7 +430,7 @@ const InsertScreen = ({ navigation }: any) => {
                 <Icon
                   name="line-chart"
                   size={20}
-                  color="#000000"
+                  color="#fff"
                   style={styles.icon}
                 />
               )}
@@ -389,7 +438,7 @@ const InsertScreen = ({ navigation }: any) => {
                 <Icon
                   name="cutlery"
                   size={20}
-                  color="#000000"
+                  color="#fff"
                   style={styles.icon}
                 />
               )}
@@ -397,7 +446,7 @@ const InsertScreen = ({ navigation }: any) => {
                 <Icon
                   name="car"
                   size={20}
-                  color="#000000"
+                  color="#fff"
                   style={styles.icon}
                 />
               )}
@@ -405,7 +454,7 @@ const InsertScreen = ({ navigation }: any) => {
                 <Icon
                   name="home"
                   size={20}
-                  color="#000000"
+                  color="#fff"
                   style={styles.icon}
                 />
               )}
@@ -413,7 +462,7 @@ const InsertScreen = ({ navigation }: any) => {
                 <Icon
                   name="gamepad"
                   size={20}
-                  color="#000000"
+                  color="#fff"
                   style={styles.icon}
                 />
               )}
@@ -421,15 +470,15 @@ const InsertScreen = ({ navigation }: any) => {
                 <Icon
                   name="heartbeat"
                   size={20}
-                  color="#000000"
+                  color="#fff"
                   style={styles.icon}
                 />
               )}
-              {category === translate("study") && (
+              {category === translate("transfer") && (
                 <Icon
-                  name="book"
+                  name="exchange"
                   size={20}
-                  color="#000000"
+                  color="#fff"
                   style={styles.icon}
                 />
               )}
@@ -437,7 +486,7 @@ const InsertScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           ))}
         </View>
-        <Text>{translate("date")}:</Text>
+        <Text style={{color: "#fff"}}>{translate("date")}:</Text>
         <TouchableOpacity
           style={styles.inputDate}
           onPress={() => setDatePickerVisibility(true)}
@@ -452,12 +501,13 @@ const InsertScreen = ({ navigation }: any) => {
           onConfirm={handleDateConfirm}
           onCancel={handleDateCancel}
         />
-        <Text>{translate("remark")}:</Text>
+        <Text style={{color: "#fff"}}>{translate("remark")}:</Text>
         <TextInput
           placeholder={translate("remark")}
           style={styles.input}
           value={remark}
           onChangeText={setRemark}
+          placeholderTextColor="#fff"
         ></TextInput>
 
        
@@ -466,12 +516,13 @@ const InsertScreen = ({ navigation }: any) => {
            <View style={styles.row}>
            <TextInput
             style={styles.inputCalculater}
-            value={input}
+            value={input} 
             onChangeText={setInput}
             keyboardType="numeric"
             placeholder="0"
             editable={false} 
             pointerEvents="none" 
+            placeholderTextColor="#fff"
           />
             {["/", "Del"].map((item) => (
               <TouchableOpacity
@@ -541,14 +592,14 @@ const InsertScreen = ({ navigation }: any) => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Daily Expense Limit</Text>
+            <Text style={styles.modalTitle}>Monthly Budget</Text>
             <TextInput
               style={styles.inputModal}
               value={dailyLimit}
               onChangeText={setDailyLimit}
               placeholder="Enter value"
               keyboardType="numeric"
-              placeholderTextColor="#FFFFFF"
+              placeholderTextColor="#fff"
             />
             <TouchableOpacity
               onPress={handleSaveLimit}
@@ -558,6 +609,38 @@ const InsertScreen = ({ navigation }: any) => {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setModalVisible(false)}
+              style={styles.cancelButton}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisibleSaving}
+        onRequestClose={() => setModalVisibleSaving(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Planning Saving</Text>
+            <TextInput
+              style={styles.inputModal}
+              value={targetValue}
+              onChangeText={setTargetValue}
+              placeholder="Enter value"
+              keyboardType="numeric"
+              placeholderTextColor="#fff"
+            />
+            <TouchableOpacity
+              onPress={handleSaveTarget}
+              style={styles.saveButton}
+            >
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setModalVisibleSaving(false)}
               style={styles.cancelButton}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -577,22 +660,13 @@ const InsertScreen = ({ navigation }: any) => {
           <View style={styles.featureButtonDesign}>
           <TouchableOpacity
             onPress={()=> setModalVisible(true)}>
-            <Text style={styles.modalTitleFeature}>Daily Expenses</Text>
+            <Text style={styles.modalTitleFeature}>Monthly Budget</Text>
           </TouchableOpacity>
           </View>
           <View style={styles.featureButtonDesign}>
-          <TouchableOpacity>
-            <Text style={styles.modalTitleFeature}>Monthly Expenses</Text>
-          </TouchableOpacity>
-          </View>
-          <View style={styles.featureButtonDesign}>
-          <TouchableOpacity>
-            <Text style={styles.modalTitleFeature}>Target Monthly Saving</Text>
-          </TouchableOpacity>
-          </View>
-          <View style={styles.featureButtonDesign}>
-          <TouchableOpacity>
-            <Text style={styles.modalTitleFeature}>Target Yearly Saving</Text>
+          <TouchableOpacity
+          onPress={()=> setModalVisibleSaving(true)}>
+            <Text style={styles.modalTitleFeature}>Target Saving</Text>
           </TouchableOpacity>
           </View>
           <View style={styles.featureButtonDesignClose}>
@@ -606,6 +680,7 @@ const InsertScreen = ({ navigation }: any) => {
           </View>
         </View>
        </Modal>
+       </SafeAreaView>
     </ScrollView>
   );
 };
@@ -613,7 +688,7 @@ const InsertScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   bodyInsertContainer: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#000000",
     overflow: "scroll",
   },
   container: {
@@ -641,7 +716,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#d3d3d3",
   },
   buttonText: {
-    color: "#0000000",
+    color: "#fff",
   },
   input: {
     height: 40,
@@ -661,6 +736,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dateValue: {
+    color: "#fff",
     textAlign: "center",
   },
   categoryList: {
@@ -685,11 +761,12 @@ const styles = StyleSheet.create({
     borderColor: "#f8b400",
   },
   buttonTextCategory: {
-    color: "#0000000",
+    color: "#fff",
     fontSize: 14,
   },
   selectedSubCategory: {
     backgroundColor: "#d3d3d3",
+    color: "#000",
   },
   icon: {
     marginRight: 5,
@@ -763,11 +840,12 @@ const styles = StyleSheet.create({
   },
   // Calculator Design
   inputCalculater: {
-    height: "80%",
+    borderColor: "#ccc",
+    height: "85%",
     marginTop: 5,
     fontSize: 15,
     textAlign: "right",
-    color: "#888",
+    color: "#fff",
     width: "50%",
     borderWidth: 2,
     borderRadius: 20,
@@ -805,7 +883,7 @@ const styles = StyleSheet.create({
   featureButtonDesign: {
     top: 20,
     width: "90%",
-    marginBottom: 10,
+    marginBottom: 20,
     borderRadius: 20,
     borderWidth: 2,
     borderColor: "#f8b400",

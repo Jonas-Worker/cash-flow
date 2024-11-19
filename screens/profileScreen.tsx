@@ -8,6 +8,7 @@ import {
   Button,
   Alert,
   TouchableOpacity,
+  SafeAreaView,
 } from "react-native";
 import supabase from "../supabaseClient";
 import { useRoute } from "@react-navigation/native";
@@ -139,7 +140,7 @@ const ProfileScreen: React.FC = () => {
   );
 
   return (
-    <View style={styles.bodyContainer}>
+    <SafeAreaView style={styles.bodyContainer}>
       <View style={styles.container}>
         <Text style={styles.profileTitle}>{translate("profile", language)}</Text>
       <FlatList
@@ -160,7 +161,7 @@ const ProfileScreen: React.FC = () => {
         </View>
       </Modal>
     </View>
-    </View>
+    </SafeAreaView>
     
   );
 };

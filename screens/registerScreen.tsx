@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import { View, TextInput, Button, StyleSheet, Alert, SafeAreaView } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack'; // Import StackNavigationProp from react-navigation
 import supabase from '../supabaseClient';
 
@@ -49,7 +49,7 @@ const RegisterScreen = ({ navigation }: any) => {
     };
 
   return (
-    <View style = {styles.container}>
+    <SafeAreaView style = {styles.container}>
       <TextInput
         placeholder="Email(example@gmail.com)"
         value={email}
@@ -70,7 +70,7 @@ const RegisterScreen = ({ navigation }: any) => {
         onChangeText={setRepassword}
         />
       <Button title="Register" onPress={handleRegister} />
-    </View>
+    </SafeAreaView>
   );
 };
 const styles = StyleSheet.create({

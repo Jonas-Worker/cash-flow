@@ -13,6 +13,7 @@ import translations from "../translations.json";
 import Modal from "react-native-modal";
 import { useRoute } from "@react-navigation/native";
 import { RouteProp } from "@react-navigation/native";
+import { themes } from "./themColor"; 
 // Define the structure of the translations
 type Language = "en" | "zh";
 type TranslationKeys = "settingsScreen" | "logout" | "profile";
@@ -36,6 +37,13 @@ const SettingsScreen = ({ navigation }: any) => {
   const [popupMessageDetails, setPopupMessageDetails] = useState("");
   const route = useRoute<RouteProp<RootParamList, "MainPage">>();
   const email = route.params?.email || "No email provided";
+  // const [theme, setTheme] = useState<"black" | "white">("black");
+
+  // const toggleTheme = () => {
+  //   setTheme((prevTheme) => (prevTheme === "black" ? "white" : "black"));
+  // };
+
+  // const currentTheme = themes[theme];
   // Function to load the language from AsyncStorage
   const loadLanguage = async () => {
     try {
@@ -83,19 +91,19 @@ const SettingsScreen = ({ navigation }: any) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container]}>
       <View style={styles.languageButtonsContainer}>
         <TouchableOpacity
-          style={styles.languageButton}
+          style={[styles.languageButton]}
           onPress={() => changeLanguage("en")}
         >
-          <Text style={styles.languageButtonText}>en</Text>
+          <Text style={[styles.languageButtonText]}>en</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.languageButton}
           onPress={() => changeLanguage("zh")}
         >
-          <Text style={styles.languageButtonText}>zh</Text>
+          <Text style={[styles.languageButtonText]}>zh</Text>
         </TouchableOpacity>
       </View>
 

@@ -20,6 +20,7 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import supabase from "../supabaseClient";
 import { PieChart } from "react-native-chart-kit";
 import { Dimensions } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Language = "en" | "zh";
 type TranslationKeys =
@@ -50,6 +51,7 @@ interface Data {
   created_at: string;
   category: string;
   remark: string;
+  time: string;
 }
 
 interface SectionData {
@@ -75,90 +77,13 @@ const MainPage = () => {
   const email = route.params?.email || "No email provided";
   const today = new Date();
   const formattedToday = today.toISOString().split("T")[0];
+  const insets = useSafeAreaInsets();
+  const [filteredData, setFilteredData] = useState<Data[]>([]);
   useEffect(() => {
     AsyncStorage.getItem("email").then((storedEmail) => {
       if (storedEmail) setEmail(storedEmail);
     });
   }, []);
-
-  const checkCashOutLimit = async () => {
-    try {
-      //  Fetch the limit value from the daily_expenses table
-      const { data: limitData, error: limitError } = await supabase
-        .from("daily_expenses")
-        .select("limit_value, notification, date")
-        .eq("email", email);
-
-      if (limitError || !limitData) {
-        Alert.alert("Error", "Failed to retrieve the daily limit.");
-        return;
-      }
-
-      const dailyLimit = limitData[0].limit_value;
-      const notified = limitData[0].notification;
-      const lastNotificationDate = limitData[0].date;
-
-      //  Check if it's a new day and reset the notified flag
-      const currentDate = new Date().toISOString().split("T")[0]; // Format the date to YYYY-MM-DD
-      if (currentDate !== lastNotificationDate) {
-        // If it's a new day, reset the notified flag
-        const { error: resetError } = await supabase
-          .from("daily_expenses")
-          .update({ notification: false, date: currentDate }) // Update the date as well
-          .eq("email", email);
-
-        if (resetError) {
-          console.error("Failed to reset notified flag:", resetError);
-        }
-      }
-      if (notified && currentDate === lastNotificationDate) {
-        return;
-      }
-
-      // Fetch the total cash_out from the cash_flows table for today
-      const { data: cashOutData, error: cashOutError } = await supabase
-        .from("cash_flows")
-        .select("daily_expenses")
-        .eq("email", email)
-        .eq("created_at", currentDate); // Filter by today's date
-
-      if (cashOutError) {
-        Alert.alert("Error", "Failed to retrieve cash out data.");
-        return;
-      }
-
-      // Calculate the total cash_out for today
-      const totalCashOut = cashOutData.reduce(
-        (total, record) => total + record.daily_expenses,
-        0
-      );
-
-      // Compare the total cash_out with the daily limit
-      if (totalCashOut > dailyLimit && !notified) {
-        //  Send a notification if the limit is exceeded and the user hasn't been notified today
-        Alert.alert("Notice", "You have exceeded your daily cash out limit!");
-
-        // Mark the user as notified today
-        const { error: updateError } = await supabase
-          .from("daily_expenses")
-          .update({ notification: true })
-          .eq("email", email)
-          .eq("date", currentDate);
-
-        if (updateError) {
-          Alert.alert("Error", "Failed to mark notification as acknowledged.");
-        }
-      } else {
-        Alert.alert("Warning", "You are within your daily limit.");
-      }
-    } catch (err) {
-      console.error(err);
-      Alert.alert(
-        "Error",
-        "An error occurred while checking the cash out limit."
-      );
-    }
-  };
 
   const loadLanguage = async () => {
     try {
@@ -223,26 +148,42 @@ const MainPage = () => {
   const closeModal = () => {
     setDetailsVisible(false);
   };
-
-  const groupByDate = (data: Data[]): { [key: string]: Data[] } => {
-    const groupedData = data.reduce<{ [key: string]: Data[] }>(
-      (result, item) => {
-        const date = new Date(item.created_at);
-        const formattedDate = date.toISOString().split("T")[0]; // Using ISO format (YYYY-MM-DD)
-
-        // If the formattedDate doesn't exist in the result object, create an empty array
+  const groupByDateAndTime = (data: Data[]): { [key: string]: Data[] } => {
+    const groupedData = data.reduce<{ [key: string]: Data[] }>((result, item) => {
+      const date = new Date(item.created_at);  // Date part (YYYY-MM-DD)
+      const time = item.time;  // Time part (HH:mm:ss)
+      
+      // Check if time is valid (non-null, non-empty)
+      if (!time || time.trim() === "") {
+        return result;  // Skip this item if time is invalid
+      }
+  
+      // Combine the date and time into a full Date string (YYYY-MM-DDTHH:mm:ss)
+      const combinedDateTime = `${item.created_at}T${item.time}`;
+  
+      // Create a Date object with the combined date and time
+      const fullDateTime = new Date(combinedDateTime); 
+  
+      // If the combined date-time is valid, use it for grouping
+      if (!isNaN(fullDateTime.getTime())) {
+        const formattedDate = date.toISOString().split("T")[0];  // Extract the date part only (YYYY-MM-DD)
+        
         if (!result[formattedDate]) {
           result[formattedDate] = [];
         }
-
-        // Push the item to the respective date group
-        result[formattedDate].push(item);
-
-        return result;
-      },
-      {}
-    );
-
+  
+        // Push the item into the grouped data array
+        result[formattedDate].push({
+          ...item,  // Copy the item properties
+          created_at: fullDateTime.toISOString(), // Store the full combined Date-time in created_at
+        });
+      } else {
+        console.error("Invalid Date-Time:", combinedDateTime);
+      }
+  
+      return result;
+    }, {});
+  
     return groupedData;
   };
   // 获取最近7天的数据
@@ -311,6 +252,7 @@ const MainPage = () => {
                 <Text style={styles.text}>Category: {item.category}</Text>
                 <Text style={styles.text}>Income: RM {item.cash_in}</Text>
                 <Text style={styles.text}>Date: {formattedDate}</Text>
+                <Text style={styles.text}>Time: {item.time}</Text>
               </View>
             </View>
             {/* Add more categories here as needed */}
@@ -327,7 +269,7 @@ const MainPage = () => {
                     color="#FFFFFF"
                     style={styles.icon}
                   />
-                ) : item.category === "Food" || item.category === "食物" ? (
+                ) : item.category === "Food" || item.category === "食品" ? (
                   <Icon
                     name="fastfood"
                     size={30}
@@ -355,6 +297,7 @@ const MainPage = () => {
                 <Text style={styles.text}>Category: {item.category}</Text>
                 <Text style={styles.text}>Income: RM {item.cash_out}</Text>
                 <Text style={styles.text}>Date: {formattedDate}</Text>
+                <Text style={styles.text}>Time: {item.time}</Text>
               </View>
             </View>
           </>
@@ -363,52 +306,6 @@ const MainPage = () => {
     );
   };
 
-  // Call the function when needed (e.g., in a useEffect or button press)
-  useEffect(() => {
-    checkCashOutLimit();
-  }, [email]);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      checkCashOutLimit();
-    }, [email])
-  );
-
-  const todayCashFlows = displayData.filter(
-    (item) => item.created_at === formattedToday
-  );
-
-  const incomeToday = todayCashFlows
-    .filter((item) => item.cash_in > 0)
-    .reduce((total, item) => total + item.cash_in, 0);
-
-  const expensesToday = todayCashFlows
-    .filter((item) => item.cash_out > 0)
-    .reduce((total, item) => total + item.cash_out, 0);
-
-  const chartData = [
-    {
-      name: translate("income"),
-      population: incomeToday,
-      color: incomeToday
-        ? "rgba(255, 255, 255, 0.3)"
-        : "rgba(255, 255, 255, 0.8)",
-      legendFontColor: "#fff",
-      legendFontSize: 15,
-    },
-    {
-      name: translate("expenses"),
-      population: expensesToday,
-      color: expensesToday
-        ? "rgba(255, 255, 255, 0.5)"
-        : "rgba(255, 255, 255, 0.8)",
-      legendFontColor: "#fff",
-      legendFontSize: 15,
-    },
-  ];
-
-  const isDataEmpty = chartData.every((item) => item.population === 0);
-
   const renderSectionHeader = ({ section }: { section: SectionData }) => (
     <View style={styles.dateHeader}>
       <Text style={styles.dateText}>{section.title}</Text>
@@ -416,18 +313,62 @@ const MainPage = () => {
   );
 
   // Group data by date
-  const groupedData = groupByDate(getLast7DaysData(displayData));
+  const groupedData = groupByDateAndTime(getLast7DaysData(displayData));
 
   // Sort the date keys (dates) from latest to oldest
   const sortedDates = Object.keys(groupedData).sort(
     (a, b) => new Date(b).getTime() - new Date(a).getTime()
   );
-
+  
   // Convert grouped data into a format accepted by SectionList
-  const sections: SectionData[] = sortedDates.map((date) => ({
-    title: date,
-    data: groupedData[date],
-  }));
+  const sections: SectionData[] = sortedDates.map((date) => {
+    const sortedDataByTime = groupedData[date].sort((a, b) => {
+      // Combine date and time to create a full timestamp
+      const timestampA = new Date(`${date}T${a.time}`).getTime();
+      const timestampB = new Date(`${date}T${b.time}`).getTime();
+  
+      return timestampB - timestampA; // Sort by time, latest first
+    });
+  
+    return {
+      title: date,
+      data: sortedDataByTime,
+    };
+  });
+
+
+      const handleTodayClick = () => {
+        const todayData = getLast7DaysData(displayData);
+        setFilteredData(todayData);
+      };
+
+      const handleWeekdayClick = () => {
+        const weekData = getLast7DaysData(displayData);
+        setFilteredData(weekData);
+      };
+
+      const handleMonthlyClick = () => {
+        const monthData = getLast7DaysData(displayData);
+        setFilteredData(monthData);
+      };
+
+      const handleDateClick = (selectedDate: Date) => {
+        const dateData = getCustomDateData(displayData, selectedDate);
+        setFilteredData(dateData);
+      };
+
+
+  
+  const getCustomDateData = (data: Data[], selectedDate: Date): Data[] => {
+    const startOfDay = new Date(selectedDate.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(selectedDate.setHours(23, 59, 59, 999));
+  
+    return data.filter((item) => {
+      const itemDate = new Date(item.created_at);
+      return itemDate >= startOfDay && itemDate <= endOfDay;
+    });
+  };
+
 
   return (
     <SafeAreaView style={styles.bodyMainContent}>
@@ -441,36 +382,25 @@ const MainPage = () => {
           <Text style={styles.valueTextExpenses}>RM {expenses}</Text>
         </View>
         <View style={styles.balanceDisplay}>
-          <Text style={styles.valueTextDefault}>Balance</Text>
+          <Text style={styles.valueTextDefault}>Balances</Text>
           <Text style={styles.value}>RM {balance}</Text>
         </View>
       </View>
 
-      <View style={styles.bodyPieChart}>
-        <View>
-          <Text style={styles.overviewPie}>Overview Daily</Text>
-        </View>
-        {isDataEmpty ? (
-          <View style={styles.fallbackCircle} />
-        ) : (
-          <PieChart
-            data={chartData}
-            width={Dimensions.get("window").width - 40}
-            height={200}
-            chartConfig={{
-              backgroundColor: "#ffffff",
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              style: {
-                borderRadius: 16,
-              },
-            }}
-            accessor="population"
-            backgroundColor="transparent"
-            paddingLeft="20"
-          />
-        )}
-      </View>
+      {/* <View>
+        <TouchableOpacity onPress={handleTodayClick}>
+          <Text style={{color: "#fff"}}>Today</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleWeekdayClick}>
+          <Text style={{color: "#fff"}}>Weekday</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleMonthlyClick}>
+          <Text style={{color: "#fff"}}>Monthly</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => handleDateClick}>
+          <Text style={{color: "#fff"}}>Date</Text>
+        </TouchableOpacity>
+      </View> */}
 
       <View style={styles.contentContainer}>
         <View style={styles.contentBodyDesign}>
@@ -486,7 +416,7 @@ const MainPage = () => {
 
       {/* Navigation container fixed at the bottom */}
       <View style={styles.navContainer}>
-        <View style={styles.iconContainer}>
+    <View style={[styles.iconContainer, { paddingTop: insets.top }]}>
           {/* Record Icon */}
           <TouchableOpacity
             style={styles.iconButton}
@@ -501,8 +431,7 @@ const MainPage = () => {
             style={[styles.iconButton, styles.largeIconButton]}
             onPress={() => navigation.navigate("Insert", { email })}
           >
-            <Icon name="library-books" size={25} color="#ffffff" />
-            <Text style={styles.valueTextNav}>Record</Text>
+            <Icon name="add" size={35} color="#ffffff" />
           </TouchableOpacity>
 
           {/* Settings Icon */}
@@ -534,6 +463,9 @@ const MainPage = () => {
                 </Text>
                 <Text style={styles.valueTextDefault}>
                   Remark: {selectedItem.remark}
+                </Text>
+                <Text style={styles.valueTextDefault}>
+                  Time: {selectedItem.time}
                 </Text>
                 <Text>
                   {selectedItem.cash_in !== 0
@@ -663,6 +595,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "#f8b400",
+    height: "7%", 
   },
   iconContainer: {
     flexDirection: "row",
@@ -678,13 +611,14 @@ const styles = StyleSheet.create({
     position: "relative",
     borderRadius: 50,
     backgroundColor: "#000000",
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: "#f8b400",
     paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingHorizontal: 10,
+    height: "120%",
+    bottom: 15,
   },
   item: {
-    padding: 15,
     marginBottom: 10,
     borderRadius: 20,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
@@ -727,11 +661,22 @@ const styles = StyleSheet.create({
   },
   fallbackCircle: {
     marginVertical: 20,
-    width: 170,
-    height: 170,
+    width: 150,
+    height: 150,
     borderRadius: 100,
     backgroundColor: "rgba(255, 255, 255, 0.8)",
     marginLeft: 40,
+  },
+  defaultCircleDesign: {
+    justifyContent: 'space-between',
+    flexDirection: "row",
+  },
+  detailsCircle:{
+    color: "#fff",
+    marginBottom: 30,
+    fontSize: 12,
+    right: 60,
+    top: 10,
   },
 
   dateHeader: {
@@ -750,8 +695,7 @@ const styles = StyleSheet.create({
   },
   itemDisplay: {
     flexDirection: "row", 
-    alignItems: "center", 
-    padding: 10,
+    paddingTop: 5,
     marginBottom: 10,
   },
   iconContainerDisplay: {
@@ -760,9 +704,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   textContainer: {
-    flex: 3, 
+    flex: 2, 
     justifyContent: "center",
-    paddingLeft: 10, 
+    padding: 5,
   },
 });
 
