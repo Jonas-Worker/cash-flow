@@ -5,11 +5,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  FlatList,
   Modal,
-  TextInput,
-  Alert,
   SectionList,
+  TextInput
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { RouteProp } from "@react-navigation/native";
@@ -79,6 +77,8 @@ const MainPage = () => {
   const formattedToday = today.toISOString().split("T")[0];
   const insets = useSafeAreaInsets();
   const [filteredData, setFilteredData] = useState<Data[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
   useEffect(() => {
     AsyncStorage.getItem("email").then((storedEmail) => {
       if (storedEmail) setEmail(storedEmail);
@@ -120,6 +120,7 @@ const MainPage = () => {
       console.error(error);
     } else {
       setDisplayData(data || []);
+      setFilteredData(data || []);
     }
     setLoading(false);
   };
@@ -295,7 +296,7 @@ const MainPage = () => {
 
               <View style={styles.textContainer}>
                 <Text style={styles.text}>Category: {item.category}</Text>
-                <Text style={styles.text}>Income: RM {item.cash_out}</Text>
+                <Text style={styles.text}>Expenses: RM {item.cash_out}</Text>
                 <Text style={styles.text}>Date: {formattedDate}</Text>
                 <Text style={styles.text}>Time: {item.time}</Text>
               </View>
@@ -369,6 +370,23 @@ const MainPage = () => {
     });
   };
 
+  const filterData = (query: string) => {
+    const lowerCaseQuery = query.toLowerCase();
+    const filtered = displayData.filter(
+      (item) =>
+        item.category.toLowerCase().includes(lowerCaseQuery) ||
+        item.cash_in.toString().includes(lowerCaseQuery) ||
+        item.cash_out.toString().includes(lowerCaseQuery) ||
+        (item.remark && item.remark.toLowerCase().includes(lowerCaseQuery))
+    );
+    setFilteredData(filtered);
+  };
+  
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    filterData(text);
+  };
+
 
   return (
     <SafeAreaView style={styles.bodyMainContent}>
@@ -401,6 +419,13 @@ const MainPage = () => {
           <Text style={{color: "#fff"}}>Date</Text>
         </TouchableOpacity>
       </View> */}
+
+<TextInput
+        style={styles.searchBar}
+        placeholder="Search "
+        value={searchQuery}
+        onChangeText={handleSearchChange}
+      />
 
       <View style={styles.contentContainer}>
         <View style={styles.contentBodyDesign}>
@@ -566,6 +591,13 @@ const styles = StyleSheet.create({
   bodyMainContent: {
     flex: 1,
     backgroundColor: "#000",
+  },
+  searchBar: {
+    backgroundColor: "#fff",
+    color: "#000",
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 10,
   },
   contentContainer: {
     flex: 1,

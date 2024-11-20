@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  Modal,
 } from "react-native";
 import supabase from "../supabaseClient";
 import { useRoute } from "@react-navigation/native";
@@ -20,10 +21,9 @@ import DateTimePickerModal from "react-native-modal-datetime-picker";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import translations from "../translations.json";
-import { Calendar } from 'react-native-calendars';
-
-import Modal from "react-native-modal";
+import { Calendar } from "react-native-calendars";
 import { useFocusEffect } from "@react-navigation/native";
+
 // Define the structure of the translations
 type Language = "en" | "zh";
 type TranslationKeys =
@@ -149,13 +149,10 @@ type RootParamList = {
   Settings: undefined;
 };
 
-const DisplayScreen: React.FC = () => {
+const DisplayScreen = ({ navigation }: any) => {
   const [cashFlows, setCashFlows] = useState<CashFlow[]>([]);
   const [monthlyBadget, setMonthlyBadget] = useState<MonthlyBudget[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"income-expenses" | "remarks">(
-    "income-expenses"
-  );
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
   const [language, setLanguage] = useState<Language>("en");
@@ -164,8 +161,11 @@ const DisplayScreen: React.FC = () => {
   const [income, setIncome] = useState(0);
   const [expenses, setExpenses] = useState(0);
   const [balance, setBalance] = useState(0);
-  const [selectedDay, setSelectedDay] = useState<string>('');
-  const [eventData, setEventData] = useState<string>('');
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [selectedDetails, setSelectedDetails] = useState<any>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
   const loadLanguage = async () => {
     try {
@@ -312,7 +312,10 @@ const DisplayScreen: React.FC = () => {
 
     return acc;
   }, {} as { [key: string]: number });
-  const totalCashOut = Object.values(remarksCount).reduce((total, cashOut) => total + cashOut, 0);
+  const totalCashOut = Object.values(remarksCount).reduce(
+    (total, cashOut) => total + cashOut,
+    0
+  );
   // Function to get the category name based on the language
   const getCategoryTag = (category: string) => {
     if (language === "zh") {
@@ -328,8 +331,7 @@ const DisplayScreen: React.FC = () => {
       const color = categoryColors[category] || "#000000";
       const tag = getCategoryTag(category);
 
-
-    const percentage = totalCashOut > 0 ? (cashOut / totalCashOut) * 100 : 0;
+      const percentage = totalCashOut > 0 ? (cashOut / totalCashOut) * 100 : 0;
       return {
         name: tag,
         population: percentage,
@@ -339,21 +341,24 @@ const DisplayScreen: React.FC = () => {
       };
     });
 
-    const remarksCountIncome = filteredCashFlows.reduce((acc, item) => {
-      // Normalize both English and Chinese categories to the English name
-      const englishCategory =
-        Object.keys(categoryTagIncome).find(
-          (key) => categoryTagIncome[key] === item.category
-        ) || item.category;
-    
-      // Aggregate the cash_in values for the category (English name)
-      acc[englishCategory] = (acc[englishCategory] || 0) + Number(item.cash_in);
-    
-      return acc;
-    }, {} as { [key: string]: number });
+  const remarksCountIncome = filteredCashFlows.reduce((acc, item) => {
+    // Normalize both English and Chinese categories to the English name
+    const englishCategory =
+      Object.keys(categoryTagIncome).find(
+        (key) => categoryTagIncome[key] === item.category
+      ) || item.category;
 
-    // Calculate the total sum of cash_in
-    const totalCashIn = Object.values(remarksCountIncome).reduce((total, cashIn) => total + cashIn, 0);
+    // Aggregate the cash_in values for the category (English name)
+    acc[englishCategory] = (acc[englishCategory] || 0) + Number(item.cash_in);
+
+    return acc;
+  }, {} as { [key: string]: number });
+
+  // Calculate the total sum of cash_in
+  const totalCashIn = Object.values(remarksCountIncome).reduce(
+    (total, cashIn) => total + cashIn,
+    0
+  );
 
   const getCategoryTagIncome = (category: string) => {
     if (language === "zh") {
@@ -364,22 +369,22 @@ const DisplayScreen: React.FC = () => {
   };
 
   const incomeChart = Object.entries(remarksCountIncome)
-  .filter(([category, _]) => selectedCategoriesIncome.includes(category)) // Filter by selected categories
-  .map(([category, cashIn]) => {
-    const color = categoryColors[category] || "#000000";
-    const tag = getCategoryTagIncome(category);
+    .filter(([category, _]) => selectedCategoriesIncome.includes(category)) // Filter by selected categories
+    .map(([category, cashIn]) => {
+      const color = categoryColors[category] || "#000000";
+      const tag = getCategoryTagIncome(category);
 
-    // Calculate the percentage
-    const percentage = totalCashIn > 0 ? (cashIn / totalCashIn) * 100 : 0;
+      // Calculate the percentage
+      const percentage = totalCashIn > 0 ? (cashIn / totalCashIn) * 100 : 0;
 
-    return {
-      name: tag,
-      population: percentage,
-      color: color,
-      legendFontColor: "#fff",
-      legendFontSize: 15,
-    };
-  });
+      return {
+        name: tag,
+        population: percentage,
+        color: color,
+        legendFontColor: "#fff",
+        legendFontSize: 15,
+      };
+    });
 
   const showDatePicker = () => {
     setDatePickerVisible(true);
@@ -396,42 +401,68 @@ const DisplayScreen: React.FC = () => {
   const resetFilter = () => {
     setDatePickerVisible(false);
     setSelectedDate(null);
-    setViewMode("income-expenses");
+
   };
 
-  const handleDayPress = (day: any) => {
-    const date = day.dateString; // Date in 'yyyy-mm-dd' format
-    setSelectedDay(date);
-  };
+  const cashInByDate = cashFlows.reduce((acc, cashFlow) => {
+    const date = cashFlow.created_at;
 
-  const markedDates = cashFlows.reduce((acc, flow) => {
-    const date = flow.created_at; // Assuming flow.date is 'yyyy-mm-dd'
-    if (flow.cash_in) {
-      acc[date] = {
-        marked: true,
-        dotColor: 'blue', // Use a dot to mark the date
-        customStyles: {
-          container: {
-            backgroundColor: 'blue',
-          },
-          text: {
-            color: 'white',
-            fontSize: 10,
-            fontWeight: 'bold',
-          },
-        },
-      };
+    if (!acc[date]) {
+      acc[date] = [];
     }
+
+    acc[date].push(cashFlow);
     return acc;
-  }, {} as any);
+  }, {} as { [key: string]: Array<CashFlow> });
 
-  // Adding income as a label below the marked date
-  const renderIncomeLabel = (date: string) => {
-    const cashFlow = cashFlows.find((flow) => flow.created_at === date);
-    if (cashFlow && cashFlow.cash_in) {
-      return <Text style={styles.incomeLabel}>${cashFlow.cash_in.toFixed(2)}</Text>;
+  // Handle date press and show transaction details in modal
+  const handleDatePress = (date: string) => {
+    const formattedDate = date.split("-").slice(1).join("/"); 
+    setSelectedDay(formattedDate);
+    const transactions = cashInByDate[date] || [];
+    setSelectedDetails(transactions);
+    setModalVisible(true);
+  };
+
+  const markedDates = Object.keys(cashInByDate).reduce((acc, date) => {
+    // 计算每个日期的总计
+    const totals = cashInByDate[date].reduce(
+      (acc, transaction) => {
+        acc.cash_in += transaction.cash_in || 0;
+        acc.cash_out += transaction.cash_out || 0;
+        return acc;
+      },
+      { cash_in: 0, cash_out: 0 }
+    );
+
+    // 为 markedDates 添加 cash_in 和 cash_out 的总计
+    acc[date] = {
+      customStyles: {
+        container: {
+          backgroundColor:
+            date === selectedDay ? "rgba(255, 255, 255, 0.3)" : "transparent", // 高亮选中的日期
+        },
+        text: {
+          color: "blue",
+        },
+      },
+      cash_in: totals.cash_in,
+      cash_out: totals.cash_out,
+    };
+
+    return acc;
+  }, {} as { [key: string]: any });
+
+  const handleMonthChange = (date: {
+    dateString: string;
+    month: number;
+    year: number;
+  }) => {
+    if (date && date.dateString) {
+      const { year, month } = date;
+      setCurrentMonth(month);
+      setCurrentYear(year);
     }
-    return null;
   };
 
   return (
@@ -456,20 +487,6 @@ const DisplayScreen: React.FC = () => {
           </View>
 
           <View style={styles.buttonRow}>
-            <TouchableOpacity
-              onPress={() => setViewMode("income-expenses")}
-              style={[styles.toggleButton]}
-            >
-              <Icon name="attach-money" size={20} color="#fff" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setViewMode("remarks")}
-              style={[styles.toggleButton]}
-            >
-              <Icon name="comment" size={20} color="#fff" />
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.toggleButton}
               onPress={showDatePicker}
@@ -511,7 +528,7 @@ const DisplayScreen: React.FC = () => {
                   borderRadius: 100,
                   zIndex: 1,
                   top: 40,
-                  left: 55,
+                  left: 53,
                 }}
               />
             </View>
@@ -544,7 +561,7 @@ const DisplayScreen: React.FC = () => {
                   borderRadius: 100,
                   zIndex: 1,
                   top: 40,
-                  left: 55,
+                  left: 53,
                 }}
               />
             </View>
@@ -578,25 +595,119 @@ const DisplayScreen: React.FC = () => {
                     borderRadius: 100,
                     zIndex: 1,
                     top: 40,
-                    left: 55,
+                    left: 53,
                   }}
                 />
               </View>
             </View>
           </TouchableOpacity>
-          <View>
-          <Calendar
-              markedDates={markedDates}
-              monthFormat={'yyyy MM'}
-              onDayPress={handleDayPress}
+
+          <View style={styles.calendarContainer}>
+            <Calendar
+              monthFormat={"yyyy-MM"}
               markingType="custom"
+              onMonthChange={handleMonthChange}
+              dayComponent={({
+                date,
+              }: {
+                date: { day: number; month: number; year: number };
+              }) => {
+                const formattedDate = `${date.year}-${String(
+                  date.month
+                ).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+
+                const isCurrentMonth =
+                  date.month === currentMonth && date.year === currentYear;
+                const { cash_in, cash_out } = markedDates[formattedDate] || {
+                  cash_in: 0,
+                  cash_out: 0,
+                };
+                return (
+                  <TouchableOpacity
+                    onPress={() => handleDatePress(formattedDate)}
+                    style={[
+                      styles.dayContainer,
+                      !isCurrentMonth && styles.nonCurrentMonth,
+                    ]}
+                  >
+                    {/* Display only the day (date.day) here */}
+                    <Text style={styles.dateText}>{date.day}</Text>
+                    {cash_in > 0 && (
+                      <Text style={styles.cashIncome}>{cash_in}</Text>
+                    )}
+                    {cash_out > 0 && (
+                      <Text style={styles.cashExpenses}>{cash_out}</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+              markedDates={cashInByDate} // Dates with cash data
+              theme={{
+                backgroundColor: "transparent",
+                calendarBackground: "transparent",
+                textSectionTitleColor: "white",
+                dayTextColor: "white",
+                todayTextColor: "red",
+                arrowColor: "white",
+                monthTextColor: "white",
+                indicatorColor: "white",
+              }}
             />
-            {selectedDay && (
-              <View style={styles.eventDetails}>
-                <Text style={styles.eventText}>Selected Date: {selectedDay}</Text>
-                {renderIncomeLabel(selectedDay)} {/* Show income for selected day */}
+
+            {/* Modal to display details */}
+            <Modal
+              animationType="slide"
+              transparent={true}
+              visible={modalVisible}
+              onRequestClose={() => setModalVisible(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalDatePlace}>
+                  <Text style={styles.modalDetails}>
+                    Details
+                  </Text>
+                  <Text style={styles.modalTitle}>
+                    {selectedDay}
+                  </Text>
+                  </View>
+               
+
+                  {/* Table header */}
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableHeader}>Category</Text>
+                    <Text style={styles.tableHeader}>Remark</Text>
+                    <Text style={styles.tableHeader}>Total (RM)</Text>
+                  </View>
+
+                  {selectedDetails?.map((transaction: CashFlow) => (
+                    <View key={transaction.id} style={styles.tableRow}>
+
+                      <Text style={styles.tableData}>
+                        {transaction.category}
+                      </Text>
+
+                      <Text style={styles.tableData}>
+                        {transaction.remark || "-"}
+                      </Text>
+
+                      <Text style={styles.tableData}>
+                        {transaction.cash_in > 0
+                          ? `${transaction.cash_in}`
+                          : `${transaction.cash_out}`}
+                      </Text>
+                    </View>
+                  ))}
+
+                  <TouchableOpacity
+                    onPress={() => setModalVisible(false)}
+                    style={styles.closeButton}
+                  >
+                    <Text style={styles.closeButtonText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            )}
+            </Modal>
           </View>
         </View>
 
@@ -642,12 +753,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     padding: 15,
     marginBottom: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderWidth: 2,
+    borderColor: "#f8b400",
+    borderRadius: 20,
   },
   totalItem: {},
-  label: {
-    fontSize: 14,
-    color: "#00796b",
-  },
   value: {
     textAlign: "center",
     fontSize: 18,
@@ -710,23 +821,105 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     paddingTop: 10,
   },
-  eventDetails: {
-    marginTop: 20,
+  calendarContainer: {
+    flex: 1,
+  },
+  dayContainer: {
+    width: 55,
+    height: 80,
+    borderWidth: 2,
+    borderColor: "#f8b400",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 5,
+    position: "relative",
+  },
+  nonCurrentMonth: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  },
+  dateText: {
+    top: 0,
+    position: "absolute",
+    left: 10,
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  cashIncome: {
+    fontSize: 10,
+    color: "rgba(124, 252, 0,1)",
+  },
+  cashExpenses: {
+    fontSize: 10,
+    color: "rgba(255,0,0, 1)",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    borderRadius: 10,
+    backgroundColor: "#000",
+    paddingVertical: 20,
+    width: "95%", 
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#f8b400",
+  },
+  modalDatePlace:{
+    justifyContent: "space-between",
+    marginBottom: 10,
+    flexDirection: "row",
+  },
+  modalTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginHorizontal: 5,
+    textAlign:"right",   
+    right:5,
+    flex: 1,
+  },
+  modalDetails: {
+    color: "#fff",
+    fontSize: 18,
+    textAlign:"left",
+    fontWeight: "bold",
+    marginHorizontal: 5,
+    flex: 1,
+  },
+  tableHeader: {
+    color: "#f8b400",
+    fontSize: 14,
+    fontWeight: "bold",
+    textAlign: "center",
+    borderWidth: 2,
+    borderColor: "#f8b400",
+    flex: 1,
+  },
+  tableData: {
+    color: "#fff",
+    fontSize: 14,
+    flex: 1,
+    textAlign: "center",
+    borderWidth: 2,
+    borderColor: "#f8b400",
+  },
+  tableRow: {
+    flexDirection: "row",
+  },
+  closeButton: {
+    backgroundColor: "#f8b400",
     padding: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    width: '80%',
-    alignItems: 'center',
+    marginTop: 20,
+    borderRadius: 5,
   },
-  eventText: {
+  closeButtonText: {
+    color: "#fff",
     fontSize: 16,
-    color: '#333',
-  },
-  incomeLabel: {
-    marginTop: 5,
-    fontSize: 12,
-    color: 'blue',
-    fontWeight: 'bold',
+    textAlign: "center",
   },
 });
 

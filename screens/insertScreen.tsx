@@ -725,6 +725,7 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     paddingLeft: 10,
     borderRadius: 10,
+    color: "#fff",
   },
   inputDate: {
     width: 150,
