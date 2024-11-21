@@ -50,7 +50,9 @@ type TranslationKeys =
   | "budget"
   | "monthlyBudget"
   | "incomeType"
-  | "expensesType";
+  | "expensesType"
+  | "target"
+  | "targetYear";
 
 // Format the Date object into DD/MM/YY format
 const formatDate = (date: Date): string => {
@@ -72,6 +74,10 @@ interface CashFlow {
 interface MonthlyBudget {
   limit_value: number;
 }
+interface TargetPlanning {
+  target_value: number;
+}
+
 const selectedCategoriesExpenses = [
   "Food",
   "Transport",
@@ -152,6 +158,7 @@ type RootParamList = {
 const DisplayScreen = ({ navigation }: any) => {
   const [cashFlows, setCashFlows] = useState<CashFlow[]>([]);
   const [monthlyBadget, setMonthlyBadget] = useState<MonthlyBudget[]>([]);
+  const [targetPalan, setTargetPlain] = useState<TargetPlanning[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
@@ -166,7 +173,7 @@ const DisplayScreen = ({ navigation }: any) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-
+  const [currentPieChart, setCurrentPieChart] = useState(0);
   const loadLanguage = async () => {
     try {
       const savedLanguage = await AsyncStorage.getItem("language");
@@ -225,6 +232,23 @@ const DisplayScreen = ({ navigation }: any) => {
     fetchMonthlyBudget();
   }, [email]);
 
+  useEffect(() => {
+    const fetchTargetPlanning = async () => {
+      const { data, error } = await supabase
+        .from("planning")
+        .select("target_value")
+        .eq("email", email);
+      if (error) {
+        console.error(error);
+      } else {
+        setTargetPlain(data || []);
+      }
+      setLoading(false);
+    };
+
+    fetchTargetPlanning();
+  }, [email]);
+
   const calculateBudget = () => {
     let budget = 0;
     monthlyBadget.forEach((flow) => {
@@ -243,6 +267,16 @@ const DisplayScreen = ({ navigation }: any) => {
       }
     });
     return expenses;
+  };
+
+  const targetPlanValue = () => {
+    let target = 0;
+    targetPalan.forEach((flow) => {
+      if (flow.target_value) {
+        target += flow.target_value;
+      }
+    });
+    return target;
   };
 
   // Filter data based on selected date
@@ -292,6 +326,26 @@ const DisplayScreen = ({ navigation }: any) => {
     {
       name: translate("expenses"),
       population: calculateExpenses(),
+      color: filterExpenses
+        ? "rgba(255, 255, 255, 0.5)"
+        : "rgba(255, 255, 255, 0.8)",
+      legendFontColor: "#fff",
+      legendFontSize: 15,
+    },
+  ];
+  const targetPlanning = [
+    {
+      name: translate("target"),
+      population: targetPlanValue(),
+      color: filterIncome
+        ? "rgba(255, 255, 255, 0.2)"
+        : "rgba(255, 255, 255, 0.8)",
+      legendFontColor: "#fff",
+      legendFontSize: 15,
+    },
+    {
+      name: translate("balances"),
+      population: balance,
       color: filterExpenses
         ? "rgba(255, 255, 255, 0.5)"
         : "rgba(255, 255, 255, 0.8)",
@@ -401,7 +455,6 @@ const DisplayScreen = ({ navigation }: any) => {
   const resetFilter = () => {
     setDatePickerVisible(false);
     setSelectedDate(null);
-
   };
 
   const cashInByDate = cashFlows.reduce((acc, cashFlow) => {
@@ -417,8 +470,8 @@ const DisplayScreen = ({ navigation }: any) => {
 
   // Handle date press and show transaction details in modal
   const handleDatePress = (date: string) => {
-    const formattedDate = date.split("-").slice(1).join("/"); 
-    setSelectedDay(formattedDate);
+    console.log("Selected Date:", date);
+    setSelectedDay(date);
     const transactions = cashInByDate[date] || [];
     setSelectedDetails(transactions);
     setModalVisible(true);
@@ -464,10 +517,15 @@ const DisplayScreen = ({ navigation }: any) => {
       setCurrentYear(year);
     }
   };
+  const dataToShow = currentPieChart === 0 ? budgetMonthly :targetPlanning; 
+
+  const handleDotPress = (index: number) => {
+    setCurrentPieChart(index);
+  };
 
   return (
     <SafeAreaView style={styles.displayContainer}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+     <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.container}>
           <View style={styles.totalContainer}>
             <View style={styles.totalItem}>
@@ -493,13 +551,12 @@ const DisplayScreen = ({ navigation }: any) => {
             >
               <Icon name="calendar-today" size={20} color="#fff" />
             </TouchableOpacity>
-
             <TouchableOpacity style={styles.toggleButton} onPress={resetFilter}>
               <Icon name="refresh" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
 
-          {/* Pie Chart */}
+          {/* Pie Chart for Income */}
           <View style={styles.bodyPieChart}>
             <Text style={styles.titlePie}>{translate("incomeType")}</Text>
             <View style={{ position: "relative" }}>
@@ -519,20 +576,10 @@ const DisplayScreen = ({ navigation }: any) => {
                 backgroundColor="transparent"
                 paddingLeft="20"
               />
-              <View
-                style={{
-                  position: "absolute",
-                  width: 120,
-                  height: 120,
-                  backgroundColor: "#000",
-                  borderRadius: 100,
-                  zIndex: 1,
-                  top: 40,
-                  left: 53,
-                }}
-              />
             </View>
           </View>
+
+          {/* Pie Chart for Expenses */}
           <View style={styles.bodyPieChart}>
             <Text style={styles.titlePie}>{translate("expensesType")}</Text>
             <View style={{ position: "relative" }}>
@@ -552,56 +599,44 @@ const DisplayScreen = ({ navigation }: any) => {
                 backgroundColor="transparent"
                 paddingLeft="20"
               />
-              <View
-                style={{
-                  position: "absolute",
-                  width: 120,
-                  height: 120,
-                  backgroundColor: "#000",
-                  borderRadius: 100,
-                  zIndex: 1,
-                  top: 40,
-                  left: 53,
-                }}
-              />
             </View>
           </View>
-          <TouchableOpacity>
-            <View style={styles.bodyPieChart}>
-              <Text style={styles.titlePie}>{translate("monthlyBudget")}</Text>
-              <View style={{ position: "relative" }}>
-                <PieChart
-                  data={budgetMonthly}
-                  width={Dimensions.get("window").width - 40}
-                  height={200}
-                  chartConfig={{
-                    backgroundColor: "#ffffff",
-                    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                    style: {
-                      borderRadius: 16,
-                    },
-                  }}
-                  accessor="population"
-                  backgroundColor="transparent"
-                  paddingLeft="20"
-                />
-                <View
-                  style={{
-                    position: "absolute",
-                    width: 120,
-                    height: 120,
-                    backgroundColor: "#000",
-                    borderRadius: 100,
-                    zIndex: 1,
-                    top: 40,
-                    left: 53,
-                  }}
-                />
-              </View>
-            </View>
-          </TouchableOpacity>
 
+          {/* Monthly Budget Chart */}
+          <View style={styles.bodyPieChart}>
+         
+            <Text style={styles.titlePie}> {currentPieChart === 0 ? translate("monthlyBudget") : translate("targetYear")}</Text>
+            <View style={{ position: "relative" }}>
+              <PieChart
+                data={dataToShow} // Switch between data based on currentPieChart state
+                width={Dimensions.get("window").width - 40}
+                height={200}
+                chartConfig={{
+                  backgroundColor: "#ffffff",
+                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                  style: {
+                    borderRadius: 16,
+                  },
+                }}
+                accessor="population"
+                backgroundColor="transparent"
+                paddingLeft="20"
+              />
+            </View>
+            <View style={styles.dotsContainer}>
+            <TouchableOpacity
+              style={[styles.dot, currentPieChart === 0 && styles.activeDot]}
+              onPress={() => handleDotPress(0)}
+            />
+            <TouchableOpacity
+              style={[styles.dot, currentPieChart === 1 && styles.activeDot]}
+              onPress={() => handleDotPress(1)}
+            />
+          </View>
+   
+          </View>
+          {/* Calendar and Modal components below */}
           <View style={styles.calendarContainer}>
             <Calendar
               monthFormat={"yyyy-MM"}
@@ -618,6 +653,8 @@ const DisplayScreen = ({ navigation }: any) => {
 
                 const isCurrentMonth =
                   date.month === currentMonth && date.year === currentYear;
+                const isSelectedDate = formattedDate === selectedDay;
+
                 const { cash_in, cash_out } = markedDates[formattedDate] || {
                   cash_in: 0,
                   cash_out: 0,
@@ -628,9 +665,9 @@ const DisplayScreen = ({ navigation }: any) => {
                     style={[
                       styles.dayContainer,
                       !isCurrentMonth && styles.nonCurrentMonth,
+                      isSelectedDate && styles.selectedDay,
                     ]}
                   >
-                    {/* Display only the day (date.day) here */}
                     <Text style={styles.dateText}>{date.day}</Text>
                     {cash_in > 0 && (
                       <Text style={styles.cashIncome}>{cash_in}</Text>
@@ -641,7 +678,7 @@ const DisplayScreen = ({ navigation }: any) => {
                   </TouchableOpacity>
                 );
               }}
-              markedDates={cashInByDate} // Dates with cash data
+              markedDates={cashInByDate}
               theme={{
                 backgroundColor: "transparent",
                 calendarBackground: "transparent",
@@ -654,7 +691,7 @@ const DisplayScreen = ({ navigation }: any) => {
               }}
             />
 
-            {/* Modal to display details */}
+            {/* Modal for details */}
             <Modal
               animationType="slide"
               transparent={true}
@@ -663,34 +700,18 @@ const DisplayScreen = ({ navigation }: any) => {
             >
               <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
-                  <View style={styles.modalDatePlace}>
-                  <Text style={styles.modalDetails}>
-                    Details
-                  </Text>
-                  <Text style={styles.modalTitle}>
-                    {selectedDay}
-                  </Text>
-                  </View>
-               
+                  <Text style={styles.modalDetails}>Details</Text>
+                  <Text style={styles.modalTitle}>{selectedDay}</Text>
 
-                  {/* Table header */}
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableHeader}>Category</Text>
-                    <Text style={styles.tableHeader}>Remark</Text>
-                    <Text style={styles.tableHeader}>Total (RM)</Text>
-                  </View>
-
+                  {/* Transaction Details */}
                   {selectedDetails?.map((transaction: CashFlow) => (
                     <View key={transaction.id} style={styles.tableRow}>
-
                       <Text style={styles.tableData}>
                         {transaction.category}
                       </Text>
-
                       <Text style={styles.tableData}>
                         {transaction.remark || "-"}
                       </Text>
-
                       <Text style={styles.tableData}>
                         {transaction.cash_in > 0
                           ? `${transaction.cash_in}`
@@ -710,15 +731,15 @@ const DisplayScreen = ({ navigation }: any) => {
             </Modal>
           </View>
         </View>
-
-        {/* Date Picker */}
-        <DateTimePickerModal
-          isVisible={isDatePickerVisible}
-          mode="date"
-          onConfirm={handleDateConfirm}
-          onCancel={handleDateCancel}
-        />
       </ScrollView>
+
+      {/* Date Picker */}
+      <DateTimePickerModal
+        isVisible={isDatePickerVisible}
+        mode="date"
+        onConfirm={handleDateConfirm}
+        onCancel={handleDateCancel}
+      />
     </SafeAreaView>
   );
 };
@@ -735,14 +756,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 20,
     paddingHorizontal: 10,
-  },
-  item: {
-    padding: 15,
-    marginBottom: 10,
-    borderRadius: 5,
-    backgroundColor: "#f8f8f8",
-    borderWidth: 1,
-    borderColor: "#ddd",
   },
   text: {
     fontSize: 16,
@@ -806,9 +819,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textAlign: "center",
   },
-  notRecord: {
-    alignItems: "center",
-  },
   bodyPieChart: {
     borderRadius: 20,
     margin: 10,
@@ -823,18 +833,21 @@ const styles = StyleSheet.create({
   },
   calendarContainer: {
     flex: 1,
+    marginBottom: 15,
   },
   dayContainer: {
-    width: 55,
+    width: "100%",
     height: 80,
-    borderWidth: 2,
-    borderColor: "#f8b400",
-    justifyContent: "center",
     alignItems: "center",
-    padding: 5,
-    position: "relative",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    marginBottom: -15,
   },
   nonCurrentMonth: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  },
+  selectedDay: {
     backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   dateText: {
@@ -863,12 +876,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: "#000",
     paddingVertical: 20,
-    width: "95%", 
+    width: "95%",
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#f8b400",
   },
-  modalDatePlace:{
+  modalDatePlace: {
     justifyContent: "space-between",
     marginBottom: 10,
     flexDirection: "row",
@@ -878,14 +891,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginHorizontal: 5,
-    textAlign:"right",   
-    right:5,
+    textAlign: "right",
+    right: 5,
     flex: 1,
   },
   modalDetails: {
     color: "#fff",
     fontSize: 18,
-    textAlign:"left",
+    textAlign: "left",
     fontWeight: "bold",
     marginHorizontal: 5,
     flex: 1,
@@ -920,6 +933,22 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     textAlign: "center",
+  },
+
+  dotsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  dot: {
+    width: 15,
+    height: 15,
+    backgroundColor: "#ccc",
+    borderRadius: 10,
+    marginHorizontal: 5,
+  },
+  activeDot: {
+    backgroundColor: "#fff",
   },
 });
 

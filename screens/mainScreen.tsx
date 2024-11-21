@@ -7,7 +7,9 @@ import {
   SafeAreaView,
   Modal,
   SectionList,
-  TextInput
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { RouteProp } from "@react-navigation/native";
@@ -18,7 +20,7 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import supabase from "../supabaseClient";
 import { PieChart } from "react-native-chart-kit";
 import { Dimensions } from "react-native";
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Language = "en" | "zh";
 type TranslationKeys =
@@ -150,41 +152,44 @@ const MainPage = () => {
     setDetailsVisible(false);
   };
   const groupByDateAndTime = (data: Data[]): { [key: string]: Data[] } => {
-    const groupedData = data.reduce<{ [key: string]: Data[] }>((result, item) => {
-      const date = new Date(item.created_at);  // Date part (YYYY-MM-DD)
-      const time = item.time;  // Time part (HH:mm:ss)
-      
-      // Check if time is valid (non-null, non-empty)
-      if (!time || time.trim() === "") {
-        return result;  // Skip this item if time is invalid
-      }
-  
-      // Combine the date and time into a full Date string (YYYY-MM-DDTHH:mm:ss)
-      const combinedDateTime = `${item.created_at}T${item.time}`;
-  
-      // Create a Date object with the combined date and time
-      const fullDateTime = new Date(combinedDateTime); 
-  
-      // If the combined date-time is valid, use it for grouping
-      if (!isNaN(fullDateTime.getTime())) {
-        const formattedDate = date.toISOString().split("T")[0];  // Extract the date part only (YYYY-MM-DD)
-        
-        if (!result[formattedDate]) {
-          result[formattedDate] = [];
+    const groupedData = data.reduce<{ [key: string]: Data[] }>(
+      (result, item) => {
+        const date = new Date(item.created_at); // Date part (YYYY-MM-DD)
+        const time = item.time; // Time part (HH:mm:ss)
+
+        // Check if time is valid (non-null, non-empty)
+        if (!time || time.trim() === "") {
+          return result; // Skip this item if time is invalid
         }
-  
-        // Push the item into the grouped data array
-        result[formattedDate].push({
-          ...item,  // Copy the item properties
-          created_at: fullDateTime.toISOString(), // Store the full combined Date-time in created_at
-        });
-      } else {
-        console.error("Invalid Date-Time:", combinedDateTime);
-      }
-  
-      return result;
-    }, {});
-  
+
+        // Combine the date and time into a full Date string (YYYY-MM-DDTHH:mm:ss)
+        const combinedDateTime = `${item.created_at}T${item.time}`;
+
+        // Create a Date object with the combined date and time
+        const fullDateTime = new Date(combinedDateTime);
+
+        // If the combined date-time is valid, use it for grouping
+        if (!isNaN(fullDateTime.getTime())) {
+          const formattedDate = date.toISOString().split("T")[0]; // Extract the date part only (YYYY-MM-DD)
+
+          if (!result[formattedDate]) {
+            result[formattedDate] = [];
+          }
+
+          // Push the item into the grouped data array
+          result[formattedDate].push({
+            ...item, // Copy the item properties
+            created_at: fullDateTime.toISOString(), // Store the full combined Date-time in created_at
+          });
+        } else {
+          console.error("Invalid Date-Time:", combinedDateTime);
+        }
+
+        return result;
+      },
+      {}
+    );
+
     return groupedData;
   };
   // 获取最近7天的数据
@@ -231,29 +236,29 @@ const MainPage = () => {
                     color="#FFFFFF"
                     style={styles.icon}
                   />
-                ) : item.category === "Saving" || item.category === "储蓄"? (
+                ) : item.category === "Saving" || item.category === "储蓄" ? (
                   <Icon
                     name="savings"
                     size={30}
                     color="#FFFFFF"
                     style={styles.icon}
                   />
-                ) : 
-                item.category === "Inves" || item.category === "投资" ? (
+                ) : item.category === "Inves" || item.category === "投资" ? (
                   <Icon
                     name="trending-up"
                     size={30}
                     color="#FFFFFF"
                     style={styles.icon}
                   />
-                ): null}
+                ) : null}
               </View>
 
               <View style={styles.textContainer}>
-                <Text style={styles.text}>Category: {item.category}</Text>
-                <Text style={styles.text}>Income: RM {item.cash_in}</Text>
-                <Text style={styles.text}>Date: {formattedDate}</Text>
-                <Text style={styles.text}>Time: {item.time}</Text>
+                <View style={styles.containerRow}>
+                  <Text style={styles.text}>{item.category}</Text>
+                  <Text style={styles.text}>{item.time}</Text>
+                </View>
+                <Text style={styles.textValue}>RM{item.cash_in}</Text>
               </View>
             </View>
             {/* Add more categories here as needed */}
@@ -277,7 +282,8 @@ const MainPage = () => {
                     color="#FFFFFF"
                     style={styles.icon}
                   />
-                ) : item.category === "Transport" || item.category === "交通" ? (
+                ) : item.category === "Transport" ||
+                  item.category === "交通" ? (
                   <Icon
                     name="commute"
                     size={30}
@@ -295,10 +301,11 @@ const MainPage = () => {
               </View>
 
               <View style={styles.textContainer}>
-                <Text style={styles.text}>Category: {item.category}</Text>
-                <Text style={styles.text}>Expenses: RM {item.cash_out}</Text>
-                <Text style={styles.text}>Date: {formattedDate}</Text>
-                <Text style={styles.text}>Time: {item.time}</Text>
+                <View style={styles.containerRow}>
+                  <Text style={styles.text}>{item.category}</Text>
+                  <Text style={styles.text}>{item.time}</Text>
+                </View>
+                <Text style={styles.textValue}>RM {item.cash_out}</Text>
               </View>
             </View>
           </>
@@ -316,54 +323,30 @@ const MainPage = () => {
   // Group data by date
   const groupedData = groupByDateAndTime(getLast7DaysData(displayData));
 
-  // Sort the date keys (dates) from latest to oldest
-  const sortedDates = Object.keys(groupedData).sort(
-    (a, b) => new Date(b).getTime() - new Date(a).getTime()
-  );
-  
-  // Convert grouped data into a format accepted by SectionList
-  const sections: SectionData[] = sortedDates.map((date) => {
-    const sortedDataByTime = groupedData[date].sort((a, b) => {
-      // Combine date and time to create a full timestamp
-      const timestampA = new Date(`${date}T${a.time}`).getTime();
-      const timestampB = new Date(`${date}T${b.time}`).getTime();
-  
-      return timestampB - timestampA; // Sort by time, latest first
-    });
-  
-    return {
-      title: date,
-      data: sortedDataByTime,
-    };
-  });
+  const handleTodayClick = () => {
+    const todayData = getLast7DaysData(displayData);
+    setFilteredData(todayData);
+  };
 
+  const handleWeekdayClick = () => {
+    const weekData = getLast7DaysData(displayData);
+    setFilteredData(weekData);
+  };
 
-      const handleTodayClick = () => {
-        const todayData = getLast7DaysData(displayData);
-        setFilteredData(todayData);
-      };
+  const handleMonthlyClick = () => {
+    const monthData = getLast7DaysData(displayData);
+    setFilteredData(monthData);
+  };
 
-      const handleWeekdayClick = () => {
-        const weekData = getLast7DaysData(displayData);
-        setFilteredData(weekData);
-      };
+  const handleDateClick = (selectedDate: Date) => {
+    const dateData = getCustomDateData(displayData, selectedDate);
+    setFilteredData(dateData);
+  };
 
-      const handleMonthlyClick = () => {
-        const monthData = getLast7DaysData(displayData);
-        setFilteredData(monthData);
-      };
-
-      const handleDateClick = (selectedDate: Date) => {
-        const dateData = getCustomDateData(displayData, selectedDate);
-        setFilteredData(dateData);
-      };
-
-
-  
   const getCustomDateData = (data: Data[], selectedDate: Date): Data[] => {
     const startOfDay = new Date(selectedDate.setHours(0, 0, 0, 0));
     const endOfDay = new Date(selectedDate.setHours(23, 59, 59, 999));
-  
+
     return data.filter((item) => {
       const itemDate = new Date(item.created_at);
       return itemDate >= startOfDay && itemDate <= endOfDay;
@@ -381,12 +364,51 @@ const MainPage = () => {
     );
     setFilteredData(filtered);
   };
-  
+
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
     filterData(text);
   };
 
+  const handleSearchSubmit = () => {
+
+    // Here you can handle the search logic, e.g., filter data or make an API request
+  };
+
+  const filteredGroupedData: { [key: string]: Data[] } = searchQuery.trim()
+    ? Object.entries(groupedData).reduce((acc, [date, items]) => {
+        const filteredItems = items.filter(
+          (item) =>
+            item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.cash_in.toString().includes(searchQuery.toLowerCase()) ||
+            item.cash_out.toString().includes(searchQuery.toLowerCase()) ||
+            (item.remark &&
+              item.remark.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
+
+        if (filteredItems.length > 0) {
+          acc[date] = filteredItems;
+        }
+
+        return acc;
+      }, {} as { [key: string]: Data[] })
+    : groupedData;
+
+  const sections: SectionData[] = Object.keys(filteredGroupedData)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+    .map((date) => {
+      const sortedDataByTime = filteredGroupedData[date].sort((a, b) => {
+        const timestampA = new Date(`${date}T${a.time}`).getTime();
+        const timestampB = new Date(`${date}T${b.time}`).getTime();
+
+        return timestampB - timestampA;
+      });
+
+      return {
+        title: date,
+        data: sortedDataByTime,
+      };
+    });
 
   return (
     <SafeAreaView style={styles.bodyMainContent}>
@@ -405,71 +427,72 @@ const MainPage = () => {
         </View>
       </View>
 
-      {/* <View>
-        <TouchableOpacity onPress={handleTodayClick}>
-          <Text style={{color: "#fff"}}>Today</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleWeekdayClick}>
-          <Text style={{color: "#fff"}}>Weekday</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleMonthlyClick}>
-          <Text style={{color: "#fff"}}>Monthly</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleDateClick}>
-          <Text style={{color: "#fff"}}>Date</Text>
-        </TouchableOpacity>
-      </View> */}
-
-<TextInput
-        style={styles.searchBar}
-        placeholder="Search "
-        value={searchQuery}
-        onChangeText={handleSearchChange}
-      />
-
-      <View style={styles.contentContainer}>
-        <View style={styles.contentBodyDesign}>
-          <SectionList
-            sections={sections}
-            renderItem={renderItem}
-            renderSectionHeader={renderSectionHeader}
-            keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={styles.flatListContent}
-          />
-        </View>
+      <View style={styles.searchDesign}> 
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Search "
+          value={searchQuery}
+          onChangeText={handleSearchChange}
+        />
+        <TouchableOpacity onPress={handleSearchSubmit} style={styles.searchIconContainer}>
+        <Icon name="search" size={24} color="black" />
+      </TouchableOpacity>
       </View>
 
-      {/* Navigation container fixed at the bottom */}
-      <View style={styles.navContainer}>
-    <View style={[styles.iconContainer, { paddingTop: insets.top }]}>
-          {/* Record Icon */}
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => navigation.navigate("Record", { email })}
-          >
-            <Icon name="folder" size={25} color="#ffffff" />
-            <Text style={styles.valueTextNav}>Report</Text>
-          </TouchableOpacity>
-
-          {/* Insert Icon (Centered and Highlighted) */}
-          <TouchableOpacity
-            style={[styles.iconButton, styles.largeIconButton]}
-            onPress={() => navigation.navigate("Insert", { email })}
-          >
-            <Icon name="add" size={35} color="#ffffff" />
-          </TouchableOpacity>
-
-          {/* Settings Icon */}
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => navigation.navigate("Settings", { email })}
-          >
-            <Icon name="settings" size={25} color="#ffffff" />
-            <Text style={styles.valueTextNav}>Setting</Text>
-          </TouchableOpacity>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.select({ ios: 0, android: -40 })}
+        style={{ flex: 1 }}
+      >
+        <View style={styles.contentContainer}>
+          <View style={styles.contentBodyDesign}>
+            {filteredGroupedData &&
+            Object.keys(filteredGroupedData).length === 0 ? (
+              // If no records are found, display "No records found"
+              <Text style={styles.noRecordsText}>No records found</Text>
+            ) : (
+              // If records exist, display the SectionList
+              <SectionList
+                sections={sections}
+                renderItem={renderItem}
+                renderSectionHeader={renderSectionHeader}
+                keyExtractor={(item) => item.id.toString()}
+                contentContainerStyle={styles.flatListContent}
+              />
+            )}
+          </View>
         </View>
-      </View>
+        {/* Navigation container fixed at the bottom */}
+        <View style={styles.navContainer}>
+          <View style={[styles.iconContainer]}>
+            {/* Record Icon */}
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => navigation.navigate("Record", { email })}
+            >
+              <Icon name="folder" size={25} color="#ffffff" />
+              <Text style={styles.valueTextNav}>Report</Text>
+            </TouchableOpacity>
 
+            {/* Insert Icon (Centered and Highlighted) */}
+            <TouchableOpacity
+              style={[styles.iconButton, styles.largeIconButton]}
+              onPress={() => navigation.navigate("Insert", { email })}
+            >
+              <Icon name="add" size={35} color="#ffffff" />
+            </TouchableOpacity>
+
+            {/* Settings Icon */}
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => navigation.navigate("Settings", { email })}
+            >
+              <Icon name="settings" size={25} color="#ffffff" />
+              <Text style={styles.valueTextNav}>Setting</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
       <Modal
         visible={detailsVisible}
         onRequestClose={closeModal}
@@ -592,22 +615,37 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000",
   },
+  searchDesign: {
+    position: "relative",
+  },
   searchBar: {
     backgroundColor: "#fff",
+    alignSelf: "flex-end",
+    right: 10,
+    justifyContent: "flex-end",
+    width: "50%",
     color: "#000",
     padding: 10,
     borderRadius: 5,
     marginBottom: 10,
   },
+  searchIconContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10, 
+    width: 30,
+    zIndex: 1,
+  },
   contentContainer: {
     flex: 1,
-    padding: 10,
-    position: "relative",
+    paddingVertical: 5,
   },
   contentBodyDesign: {
-    borderColor: "#f8b400",
-    borderWidth: 2,
+    flex: 1,
+    justifyContent: "center",
+    alignContent: "center",
     borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   flatListContent: {
     paddingTop: 5,
@@ -620,14 +658,14 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     position: "absolute",
     bottom: 0,
-    zIndex: 1,
     width: "100%",
     borderRadius: 20,
     textAlign: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "#f8b400",
-    height: "7%", 
+    height: 55,
+    zIndex: 100,
   },
   iconContainer: {
     flexDirection: "row",
@@ -658,10 +696,15 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   text: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#fff",
   },
-
+  textValue: {
+    fontSize: 14,
+    color: "#fff",
+    alignSelf: "center",
+    right: 20,
+  },
   modalDetailsContent: {
     backgroundColor: "#000000",
     width: "80%",
@@ -700,10 +743,10 @@ const styles = StyleSheet.create({
     marginLeft: 40,
   },
   defaultCircleDesign: {
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
     flexDirection: "row",
   },
-  detailsCircle:{
+  detailsCircle: {
     color: "#fff",
     marginBottom: 30,
     fontSize: 12,
@@ -726,19 +769,31 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   itemDisplay: {
-    flexDirection: "row", 
+    flexDirection: "row",
     paddingTop: 5,
     marginBottom: 10,
   },
   iconContainerDisplay: {
-    flex: 1, 
-    justifyContent: "center", 
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
   },
   textContainer: {
-    flex: 2, 
+    flex: 2,
     justifyContent: "center",
     padding: 5,
+    flexDirection: "row",
+  },
+  containerRow: {
+    justifyContent: "center",
+    flex: 1,
+    flexDirection: "column",
+  },
+  noRecordsText: {
+    textAlign: "center",
+    fontSize: 18,
+    color: "#888",
+    padding: 20,
   },
 });
 

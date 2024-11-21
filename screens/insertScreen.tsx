@@ -53,7 +53,11 @@ type TranslationKeys =
   | "reward"
   | "saving"
   | "submit"
-  | "transfer";
+  | "transfer"
+  | "monthlyBudget"
+  | "target"
+  | "targetYear"
+  | "otherSetting";
 
 const InsertScreen = ({ navigation }: any) => {
   const [date, setDate] = useState("");
@@ -592,7 +596,7 @@ const InsertScreen = ({ navigation }: any) => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Monthly Budget</Text>
+            <Text style={styles.modalTitle}>{translate("targetYear")}</Text>
             <TextInput
               style={styles.inputModal}
               value={dailyLimit}
@@ -656,17 +660,17 @@ const InsertScreen = ({ navigation }: any) => {
        >
         <View style={styles.featureDesignContain}>
         <View style={styles.modalContent}>
-        <Text style={styles.modalTitleFeature}>Other Setting</Text>
+        <Text style={styles.modalTitleFeature}>{translate("otherSetting")}</Text>
           <View style={styles.featureButtonDesign}>
           <TouchableOpacity
             onPress={()=> setModalVisible(true)}>
-            <Text style={styles.modalTitleFeature}>Monthly Budget</Text>
+            <Text style={styles.modalTitleFeature}>{translate("monthlyBudget")}</Text>
           </TouchableOpacity>
           </View>
           <View style={styles.featureButtonDesign}>
           <TouchableOpacity
           onPress={()=> setModalVisibleSaving(true)}>
-            <Text style={styles.modalTitleFeature}>Target Saving</Text>
+            <Text style={styles.modalTitleFeature}>{translate("targetYear")}</Text>
           </TouchableOpacity>
           </View>
           <View style={styles.featureButtonDesignClose}>

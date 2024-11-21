@@ -145,12 +145,13 @@ const styles = StyleSheet.create({
     position: "relative",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#000",
   },
   title: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 20,
+    color: "#fff"
   },
   languageButtonsContainer: {
     top: 0,
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
     borderColor: '#f8b400',
   },
   languageButtonText: {
-    color: "#000",
+    color: "#fff",
     fontSize: 16,
   },
   logoutButton: {
@@ -179,6 +180,7 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     padding: 15,
     paddingHorizontal: 25,
+    color: "#fff"
   },
   modalContent: {
     backgroundColor: "white",

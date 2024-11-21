@@ -81,6 +81,10 @@ const App = () => {
             options={{
               headerTitleAlign: 'center',
               headerTransparent: true,
+              headerTitleStyle: {
+                color: 'white',  // Set the header title color to white
+              },
+              headerTintColor: 'white',
             }}
           />
           <Stack.Screen 

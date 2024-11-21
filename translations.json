@@ -39,10 +39,13 @@
     "not_record": "Not Record",
     "balances": "Balances",
     "transfer": "Transfer",
-    "budget" : " Budget",
+    "budget": " Budget",
     "monthlyBudget": "Monthly Budget",
     "incomeType": " Income Category",
-     "expensesType": " Expenses Category"
+    "expensesType": " Expenses Category",
+    "target": "Target",
+    "targetYear": "Target Year Saving",
+    "otherSetting": "Other Feacture"
   },
   "zh": {
     "settingsScreen": "设置界面",
@@ -84,9 +87,12 @@
     "not_record": "没有记录",
     "balances": "余额",
     "transfer": "转帐",
-    "budget" : " 预算",
+    "budget": " 预算",
     "monthlyBudget": "每月预算",
     "incomeType": "收入分类",
-    "expensesType": "支出分类"
+    "expensesType": "支出分类",
+    "target": "目标",
+    "targetYear": "全年目标",
+    "otherSetting": "功能"
   }
 }
