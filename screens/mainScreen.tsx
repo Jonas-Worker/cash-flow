@@ -68,18 +68,14 @@ const MainPage = () => {
   const [income, setIncome] = useState(0);
   const [expenses, setExpenses] = useState(0);
   const [balance, setBalance] = useState(0);
-  const [viewMode, setViewMode] = useState<"income-expenses" | "remarks">(
-    "income-expenses"
-  );
   const [detailsVisible, setDetailsVisible] = useState(false);
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProp<RootParamList, "MainPage">>();
   const email = route.params?.email || "No email provided";
   const today = new Date();
-  const formattedToday = today.toISOString().split("T")[0];
-  const insets = useSafeAreaInsets();
   const [filteredData, setFilteredData] = useState<Data[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeButton, setActiveButton] = useState(null);
 
   useEffect(() => {
     AsyncStorage.getItem("email").then((storedEmail) => {
@@ -154,36 +150,25 @@ const MainPage = () => {
   const groupByDateAndTime = (data: Data[]): { [key: string]: Data[] } => {
     const groupedData = data.reduce<{ [key: string]: Data[] }>(
       (result, item) => {
-        const date = new Date(item.created_at); // Date part (YYYY-MM-DD)
-        const time = item.time; // Time part (HH:mm:ss)
+        const date = new Date(item.created_at);
+        const time = item.time;
 
-        // Check if time is valid (non-null, non-empty)
+        const formattedDate = date.toISOString().split("T")[0];
+        const formattedTime = time.slice(0, 5);
+
         if (!time || time.trim() === "") {
-          return result; // Skip this item if time is invalid
+          return result;
         }
 
-        // Combine the date and time into a full Date string (YYYY-MM-DDTHH:mm:ss)
-        const combinedDateTime = `${item.created_at}T${item.time}`;
-
-        // Create a Date object with the combined date and time
-        const fullDateTime = new Date(combinedDateTime);
-
-        // If the combined date-time is valid, use it for grouping
-        if (!isNaN(fullDateTime.getTime())) {
-          const formattedDate = date.toISOString().split("T")[0]; // Extract the date part only (YYYY-MM-DD)
-
-          if (!result[formattedDate]) {
-            result[formattedDate] = [];
-          }
-
-          // Push the item into the grouped data array
-          result[formattedDate].push({
-            ...item, // Copy the item properties
-            created_at: fullDateTime.toISOString(), // Store the full combined Date-time in created_at
-          });
-        } else {
-          console.error("Invalid Date-Time:", combinedDateTime);
+        if (!result[formattedDate]) {
+          result[formattedDate] = [];
         }
+
+        result[formattedDate].push({
+          ...item,
+          created_at: formattedDate,
+          time: formattedTime,
+        });
 
         return result;
       },
@@ -192,6 +177,7 @@ const MainPage = () => {
 
     return groupedData;
   };
+
   // 获取最近7天的数据
   const getLast7DaysData = (data: Data[]): Data[] => {
     const today = new Date();
@@ -256,6 +242,9 @@ const MainPage = () => {
               <View style={styles.textContainer}>
                 <View style={styles.containerRow}>
                   <Text style={styles.text}>{item.category}</Text>
+                  {item.remark && (
+                    <Text style={styles.text}>{item.remark}</Text>
+                  )}
                   <Text style={styles.text}>{item.time}</Text>
                 </View>
                 <Text style={styles.textValue}>RM{item.cash_in}</Text>
@@ -303,6 +292,9 @@ const MainPage = () => {
               <View style={styles.textContainer}>
                 <View style={styles.containerRow}>
                   <Text style={styles.text}>{item.category}</Text>
+                  {item.remark && (
+                    <Text style={styles.text}>{item.remark}</Text>
+                  )}
                   <Text style={styles.text}>{item.time}</Text>
                 </View>
                 <Text style={styles.textValue}>RM {item.cash_out}</Text>
@@ -371,7 +363,6 @@ const MainPage = () => {
   };
 
   const handleSearchSubmit = () => {
-
     // Here you can handle the search logic, e.g., filter data or make an API request
   };
 
@@ -410,6 +401,11 @@ const MainPage = () => {
       };
     });
 
+  const handlePress = (screen: any) => {
+    setActiveButton(screen);
+    navigation.navigate(screen, { email });
+  };
+
   return (
     <SafeAreaView style={styles.bodyMainContent}>
       <View style={styles.topNavContainer}>
@@ -427,16 +423,19 @@ const MainPage = () => {
         </View>
       </View>
 
-      <View style={styles.searchDesign}> 
+      <View style={styles.searchDesign}>
         <TextInput
           style={styles.searchBar}
           placeholder="Search "
           value={searchQuery}
           onChangeText={handleSearchChange}
         />
-        <TouchableOpacity onPress={handleSearchSubmit} style={styles.searchIconContainer}>
-        <Icon name="search" size={24} color="black" />
-      </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleSearchSubmit}
+          style={styles.searchIconContainer}
+        >
+          <Icon name="search" size={24} color="black" />
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
@@ -467,8 +466,11 @@ const MainPage = () => {
           <View style={[styles.iconContainer]}>
             {/* Record Icon */}
             <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => navigation.navigate("Record", { email })}
+              style={[
+                styles.iconButton,
+                activeButton === "Record" && styles.activeButton,
+              ]}
+              onPress={() => handlePress("Record")}
             >
               <Icon name="folder" size={25} color="#ffffff" />
               <Text style={styles.valueTextNav}>Report</Text>
@@ -476,16 +478,23 @@ const MainPage = () => {
 
             {/* Insert Icon (Centered and Highlighted) */}
             <TouchableOpacity
-              style={[styles.iconButton, styles.largeIconButton]}
-              onPress={() => navigation.navigate("Insert", { email })}
+              style={[
+                styles.iconButton,
+                styles.largeIconButton,
+                activeButton === "Insert" && styles.activeButton,
+              ]}
+              onPress={() => handlePress("Insert")}
             >
               <Icon name="add" size={35} color="#ffffff" />
             </TouchableOpacity>
 
             {/* Settings Icon */}
             <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => navigation.navigate("Settings", { email })}
+              style={[
+                styles.iconButton,
+                activeButton === "Settings" && styles.activeButton,
+              ]}
+              onPress={() => handlePress("Settings")}
             >
               <Icon name="settings" size={25} color="#ffffff" />
               <Text style={styles.valueTextNav}>Setting</Text>
@@ -502,26 +511,52 @@ const MainPage = () => {
           <View style={styles.modalDetailsContent}>
             {selectedItem && (
               <>
-                <Text style={styles.valueTextDefault}>Details</Text>
-                <Text style={styles.valueTextDefault}>
-                  Category: {selectedItem.category}
-                </Text>
-                <Text style={styles.valueTextDefault}>
-                  Date: {selectedItem.created_at}
-                </Text>
-                <Text style={styles.valueTextDefault}>
-                  Remark: {selectedItem.remark}
-                </Text>
-                <Text style={styles.valueTextDefault}>
-                  Time: {selectedItem.time}
-                </Text>
-                <Text>
-                  {selectedItem.cash_in !== 0
-                    ? `Income: ${selectedItem.cash_in}`
-                    : `Expenses: ${selectedItem.cash_out}`}
-                </Text>
+                <Text style={styles.valueTitle}>Details</Text>
+
+                {/* Category */}
+                <View style={styles.row}>
+                  <Text style={styles.labelText}>Category:</Text>
+                  <Text style={styles.valueTextDefault}>
+                    {selectedItem.category}
+                  </Text>
+                </View>
+
+                {/* Date */}
+                <View style={styles.row}>
+                  <Text style={styles.labelText}>Date:</Text>
+                  <Text style={styles.valueTextDefault}>
+                    {selectedItem.created_at}
+                  </Text>
+                </View>
+
+                {/* Remark */}
+                <View style={styles.row}>
+                  <Text style={styles.labelText}>Remark:</Text>
+                  <Text style={styles.valueTextDefault}>
+                    {selectedItem.remark || "-"}
+                  </Text>
+                </View>
+
+                {/* Time */}
+                <View style={styles.row}>
+                  <Text style={styles.labelText}>Time:</Text>
+                  <Text style={styles.valueTextDefault}>
+                    {selectedItem.time}
+                  </Text>
+                </View>
+
+                {/* Cash in or out */}
+                <View style={styles.row}>
+                  <Text style={styles.labelText}>Amount:</Text>
+                  <Text style={styles.valueTextDefault}>
+                    {selectedItem.cash_in !== 0
+                      ? `RM ${selectedItem.cash_in}`
+                      : `RM ${selectedItem.cash_out}`}
+                  </Text>
+                </View>
               </>
             )}
+
             <TouchableOpacity onPress={closeModal}>
               <Text style={styles.valueTextDefault}>Close</Text>
             </TouchableOpacity>
@@ -570,6 +605,18 @@ const styles = StyleSheet.create({
     display: "flex",
     alignSelf: "center",
   },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  labelText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#fff",
+    justifyContent: "flex-start",
+    flex: 1,
+  },
   valueTextExpenses: {
     color: "rgba(255,0,0, 1)",
     fontWeight: "bold",
@@ -587,6 +634,13 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     display: "flex",
     alignSelf: "center",
+  },
+  valueTitle: {
+    color: "#fff",
+    fontWeight: "bold",
+    display: "flex",
+    alignSelf: "center",
+    fontSize: 18,
   },
   valueTextNav: {
     color: "#fff",
@@ -630,9 +684,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   searchIconContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 10,
-    right: 10, 
+    right: 10,
     width: 30,
     zIndex: 1,
   },
@@ -648,11 +702,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   flatListContent: {
-    paddingTop: 5,
-    marginVertical: 10,
-    marginHorizontal: 10,
-    paddingBottom: 80,
-  },
+  paddingTop: 5,
+  marginVertical: 10,
+  marginHorizontal: 10,
+  paddingBottom: 80,
+
+},
   navContainer: {
     backgroundColor: "#000000",
     paddingVertical: 5,
@@ -666,14 +721,24 @@ const styles = StyleSheet.create({
     borderColor: "#f8b400",
     height: 55,
     zIndex: 100,
+    
   },
   iconContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
+    position: "relative",
   },
   iconButton: {
-    padding: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    width: 50,
+    height: 50,
+  },
+  activeButton: {
+    borderRadius: 50,
+    backgroundColor: "#f8b400",
   },
   largeIconButton: {
     justifyContent: "center",
@@ -683,17 +748,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#000000",
     borderWidth: 2,
     borderColor: "#f8b400",
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 5,
     height: "120%",
+    width: "15%",
     bottom: 15,
   },
   item: {
     marginBottom: 10,
     borderRadius: 20,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
-    borderColor: "#f8b400",
-    borderWidth: 2,
+    borderColor: "#f8b400", 
+    borderWidth: 2, 
   },
   text: {
     fontSize: 14,

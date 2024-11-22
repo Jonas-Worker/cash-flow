@@ -10,12 +10,13 @@ import {
   ScrollView,
   SafeAreaView,
   Modal,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from "react-native";
 import supabase from "../supabaseClient";
 import { useRoute } from "@react-navigation/native";
 import { RouteProp } from "@react-navigation/native";
 import { PieChart } from "react-native-chart-kit";
-import { BarChart } from "react-native-chart-kit";
 import { Dimensions } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import Icon from "react-native-vector-icons/MaterialIcons";
@@ -174,6 +175,7 @@ const DisplayScreen = ({ navigation }: any) => {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentPieChart, setCurrentPieChart] = useState(0);
+
   const loadLanguage = async () => {
     try {
       const savedLanguage = await AsyncStorage.getItem("language");
@@ -470,7 +472,6 @@ const DisplayScreen = ({ navigation }: any) => {
 
   // Handle date press and show transaction details in modal
   const handleDatePress = (date: string) => {
-    console.log("Selected Date:", date);
     setSelectedDay(date);
     const transactions = cashInByDate[date] || [];
     setSelectedDetails(transactions);
@@ -517,15 +518,20 @@ const DisplayScreen = ({ navigation }: any) => {
       setCurrentYear(year);
     }
   };
-  const dataToShow = currentPieChart === 0 ? budgetMonthly :targetPlanning; 
+  const dataToShow = currentPieChart === 0 ? budgetMonthly : targetPlanning;
 
-  const handleDotPress = (index: number) => {
-    setCurrentPieChart(index);
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const scrollPosition = event.nativeEvent.contentOffset.x;
+    const screenWidth = Dimensions.get("window").width;
+
+    // Calculate the current page (0 for budgetMonthly, 1 for targetPlanning)
+    const currentPage = Math.round(scrollPosition / screenWidth);
+    setCurrentPieChart(currentPage);
   };
 
   return (
     <SafeAreaView style={styles.displayContainer}>
-     <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.container}>
           <View style={styles.totalContainer}>
             <View style={styles.totalItem}>
@@ -576,6 +582,25 @@ const DisplayScreen = ({ navigation }: any) => {
                 backgroundColor="transparent"
                 paddingLeft="20"
               />
+              <View
+                style={{
+                  position: "absolute",
+                  width: 120,
+                  height: 120,
+                  backgroundColor: "#000",
+                  borderRadius: 100,
+                  zIndex: 1,
+                  top: 40,
+                  left: 53,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                 <Text style={styles.circleText}>
+                  <Text>RM </Text>
+                    <Text>{income}</Text>
+                  </Text>
+              </View>
             </View>
           </View>
 
@@ -599,42 +624,116 @@ const DisplayScreen = ({ navigation }: any) => {
                 backgroundColor="transparent"
                 paddingLeft="20"
               />
+              <View
+                style={{
+                  position: "absolute",
+                  width: 120,
+                  height: 120,
+                  backgroundColor: "#000",
+                  borderRadius: 100,
+                  zIndex: 1,
+                  top: 40,
+                  left: 53,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                 <Text style={styles.circleText}>
+                 <Text>RM </Text>
+                    <Text>{expenses}</Text>
+                  </Text>
+              </View>
             </View>
           </View>
 
           {/* Monthly Budget Chart */}
           <View style={styles.bodyPieChart}>
-         
-            <Text style={styles.titlePie}> {currentPieChart === 0 ? translate("monthlyBudget") : translate("targetYear")}</Text>
-            <View style={{ position: "relative" }}>
-              <PieChart
-                data={dataToShow} // Switch between data based on currentPieChart state
-                width={Dimensions.get("window").width - 40}
-                height={200}
-                chartConfig={{
-                  backgroundColor: "#ffffff",
-                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                  style: {
-                    borderRadius: 16,
-                  },
-                }}
-                accessor="population"
-                backgroundColor="transparent"
-                paddingLeft="20"
-              />
-            </View>
-            <View style={styles.dotsContainer}>
-            <TouchableOpacity
-              style={[styles.dot, currentPieChart === 0 && styles.activeDot]}
-              onPress={() => handleDotPress(0)}
-            />
-            <TouchableOpacity
-              style={[styles.dot, currentPieChart === 1 && styles.activeDot]}
-              onPress={() => handleDotPress(1)}
-            />
-          </View>
-   
+            <Text style={styles.titlePie}>
+              {" "}
+              {currentPieChart === 0
+                ? translate("monthlyBudget")
+                : translate("targetYear")}
+            </Text>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={handleScroll}
+              contentContainerStyle={styles.horizontalScrollView}
+            >
+              <View style={styles.chartContainer}>
+                <PieChart
+                  data={budgetMonthly} // Switch between data based on currentPieChart state
+                  width={Dimensions.get("window").width - 40}
+                  height={200}
+                  chartConfig={{
+                    backgroundColor: "#ffffff",
+                    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                    style: {
+                      borderRadius: 16,
+                    },
+                  }}
+                  accessor="population"
+                  backgroundColor="transparent"
+                  paddingLeft="20"
+                />
+                <View
+                  style={{
+                    position: "absolute",
+                    width: 120,
+                    height: 120,
+                    backgroundColor: "#000",
+                    borderRadius: 100,
+                    zIndex: 1,
+                    top: 40,
+                    left: 53,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                   <Text style={styles.circleText}>
+                   <Text>RM </Text>
+                    <Text>{budgetMonthly[0].population}</Text> /{"\n"}<Text>RM </Text> <Text>{budgetMonthly[1].population}</Text> 
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.chartContainer}>
+                <PieChart
+                  data={targetPlanning}
+                  width={Dimensions.get("window").width - 40}
+                  height={200}
+                  chartConfig={{
+                    backgroundColor: "#ffffff",
+                    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                    style: { borderRadius: 16 },
+                  }}
+                  accessor="population"
+                  backgroundColor="transparent"
+                  paddingLeft="20"
+                />
+                 <View
+                  style={{
+                    position: "absolute",
+                    width: 120,
+                    height: 120,
+                    backgroundColor: "#000",
+                    borderRadius: 100,
+                    zIndex: 1,
+                    top: 40,
+                    left: 53,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={styles.circleText}>
+                  <Text>RM </Text>
+                    {targetPlanning[0].population}
+                  </Text>
+                </View>
+                </View>
+            </ScrollView>
           </View>
           {/* Calendar and Modal components below */}
           <View style={styles.calendarContainer}>
@@ -669,12 +768,17 @@ const DisplayScreen = ({ navigation }: any) => {
                     ]}
                   >
                     <Text style={styles.dateText}>{date.day}</Text>
-                    {cash_in > 0 && (
+                    <View style={styles.cashContainer}>
+                    {cash_in > 0 ? (
                       <Text style={styles.cashIncome}>{cash_in}</Text>
+                    ) : (
+                      <View style={styles.emptyIncome} /> 
                     )}
-                    {cash_out > 0 && (
-                      <Text style={styles.cashExpenses}>{cash_out}</Text>
-                    )}
+
+                      {cash_out > 0 && (
+                        <Text style={styles.cashExpenses}>{cash_out}</Text>
+                      )}
+                    </View>
                   </TouchableOpacity>
                 );
               }}
@@ -700,18 +804,34 @@ const DisplayScreen = ({ navigation }: any) => {
             >
               <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
-                  <Text style={styles.modalDetails}>Details</Text>
-                  <Text style={styles.modalTitle}>{selectedDay}</Text>
+                  <View style={styles.modalDatePlace}>
+                  <Text style={styles.modalDetails}>
+                    Details
+                  </Text>
+                  <Text style={styles.modalTitle}>
+                    {selectedDay}
+                  </Text>
+                  </View>
+               
 
-                  {/* Transaction Details */}
+                  {/* Table header */}
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableHeader}>Category</Text>
+                    <Text style={styles.tableHeader}>Remark</Text>
+                    <Text style={styles.tableHeader}>Total (RM)</Text>
+                  </View>
+
                   {selectedDetails?.map((transaction: CashFlow) => (
                     <View key={transaction.id} style={styles.tableRow}>
+
                       <Text style={styles.tableData}>
                         {transaction.category}
                       </Text>
+
                       <Text style={styles.tableData}>
                         {transaction.remark || "-"}
                       </Text>
+
                       <Text style={styles.tableData}>
                         {transaction.cash_in > 0
                           ? `${transaction.cash_in}`
@@ -866,6 +986,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "rgba(255,0,0, 1)",
   },
+  cashContainer: {
+    flexDirection: "column", 
+    alignItems: "center", 
+  },
+  emptyIncome: {
+    height: 15, 
+    width: "100%", 
+  },
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
@@ -934,22 +1062,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
   },
-
-  dotsContainer: {
+  horizontalScrollView: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
   },
-  dot: {
-    width: 15,
-    height: 15,
-    backgroundColor: "#ccc",
-    borderRadius: 10,
-    marginHorizontal: 5,
+  chartContainer: {
+    justifyContent: "center",
+    alignItems: "center",
   },
-  activeDot: {
-    backgroundColor: "#fff",
-  },
+  circleText: {
+    color: "#fff", // Text color inside the circle
+    fontSize: 14,   // Adjust size as needed
+    fontWeight: "bold", // Optional: To make the text stand out
+    textAlign: "center",
+  }
 });
 
 export default DisplayScreen;

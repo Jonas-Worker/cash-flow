@@ -19,7 +19,7 @@ import DateTimePickerModal from "react-native-modal-datetime-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import translations from "../translations.json";
 import { useFocusEffect } from "@react-navigation/native";
-import { evaluate } from 'mathjs';
+import { evaluate } from "mathjs";
 
 type RootParamList = {
   MainPage: { email: string };
@@ -75,10 +75,16 @@ const InsertScreen = ({ navigation }: any) => {
   const [modalVisibleSaving, setModalVisibleSaving] = useState(false);
   const [modalVisibleFeature, setModalVisibleFeature] = useState(false);
   const [dailyLimit, setDailyLimit] = useState("");
-  const [targetValue , setTargetValue] = useState("");
+  const [targetValue, setTargetValue] = useState("");
   const [input, setInput] = useState("");
   const currentDate = new Date();
   const timeOnly = currentDate.toTimeString().split(" ")[0];
+  const [modalVisibleRate, setModalVisibleRate] = useState(false);
+  const [principal, setPrincipal] = useState("");
+  const [rate, setRate] = useState("");
+  const [years, setYears] = useState("");
+  const [monthlyPayment, setMonthlyPayment] = useState<string | null>(null);
+
   const loadLanguage = async () => {
     try {
       const savedLanguage = await AsyncStorage.getItem("language");
@@ -105,9 +111,9 @@ const InsertScreen = ({ navigation }: any) => {
   const handleSubmit = async () => {
     setError("");
     const validCashIn =
-    input.trim() === "" || isNaN(Number(input)) ? "0" : input;
+      input.trim() === "" || isNaN(Number(input)) ? "0" : input;
     const validCashOut =
-    input.trim() === "" || isNaN(Number(input)) ? "0" : input;
+      input.trim() === "" || isNaN(Number(input)) ? "0" : input;
 
     const category = remarkSubCategory;
 
@@ -139,7 +145,7 @@ const InsertScreen = ({ navigation }: any) => {
 
           created_at: currentDate,
           email: email,
-          time:timeOnly,
+          time: timeOnly,
         },
       ]);
 
@@ -213,14 +219,12 @@ const InsertScreen = ({ navigation }: any) => {
         operationError = updateError;
       } else {
         // Step 3: If the email does not exist, insert a new record
-        const { error: insertError } = await supabase
-          .from("planning")
-          .insert([
-            {
-              email: email,
-              limit_value: dailyLimit,
-            },
-          ]);
+        const { error: insertError } = await supabase.from("planning").insert([
+          {
+            email: email,
+            limit_value: dailyLimit,
+          },
+        ]);
 
         operationError = insertError;
       }
@@ -239,7 +243,7 @@ const InsertScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleSaveTarget = async ()=> {
+  const handleSaveTarget = async () => {
     try {
       // Step 1: Check if the email already exists in the table
       const { data: existingData, error: fetchError } = await supabase
@@ -265,14 +269,12 @@ const InsertScreen = ({ navigation }: any) => {
         operationError = updateError;
       } else {
         // Step 3: If the email does not exist, insert a new record
-        const { error: insertError } = await supabase
-          .from("planning")
-          .insert([
-            {
-              email: email,
-              target_value: targetValue,
-            },
-          ]);
+        const { error: insertError } = await supabase.from("planning").insert([
+          {
+            email: email,
+            target_value: targetValue,
+          },
+        ]);
 
         operationError = insertError;
       }
@@ -289,30 +291,38 @@ const InsertScreen = ({ navigation }: any) => {
       console.error(err);
       Alert.alert("Error", "An error occurred while submitting the data.");
     }
-  }
+  };
   useEffect(() => {
     if (remarkCategory === "Income") {
       setInput("");
     } else if (remarkCategory === "Expenses") {
       setInput("");
     }
-  },[remarkCategory])
+  }, [remarkCategory]);
+
   const handlePress = (value: string | number) => {
     if (value === "=") {
       try {
         const evaluation = eval(input);
         setInput(evaluation.toString());
-      } catch (error) {
-        setInput("Error");
-      }
+      } catch (error) {}
     } else if (value === "C") {
-      setInput("");  // Clear the input
+      setInput("");
     } else if (value === "Del") {
-      // Remove the last character from input
-      setInput((prev) => prev.slice(0, -1)); 
-    } else {
-      // Append the value to the input
-      setInput((prev) => prev + value);
+      setInput((prev) => prev.slice(0, -1));
+    } else if (typeof value === "string") {
+      setInput((prev) => {
+        if (["+", "-", "*", "/"].includes(value) && prev === "") {
+          return prev;
+        }
+        if (
+          ["+", "-", "*", "/"].includes(value) &&
+          ["+", "-", "*", "/"].includes(prev.slice(-1))
+        ) {
+          return prev;
+        }
+        return prev + value;
+      });
     }
   };
 
@@ -342,349 +352,439 @@ const InsertScreen = ({ navigation }: any) => {
     translate("transfer"),
   ];
 
+  const calculateHomeLoan = () => {
+    const P = parseFloat(principal);
+    const r = parseFloat(rate) / 12 / 100;
+    const n = parseFloat(years) * 12;
+
+    if (!P || !r || !n) {
+      setMonthlyPayment("Error: Invalid input");
+      return;
+    }
+
+    const emi = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    setMonthlyPayment(emi.toFixed(2));
+  };
+  const handleCloseModal = () => {
+    // 清空所有值
+    setPrincipal("");
+    setRate("");
+    setYears("");
+    setMonthlyPayment("");
+    // 关闭 Modal
+    setModalVisibleRate(false);
+  };
+
   return (
     <ScrollView style={styles.bodyInsertContainer}>
       <SafeAreaView>
-      <View style={styles.container}>
-        <View style={styles.categoryButtons}>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              remarkCategory === "Income" && styles.selectedButton,
-            ]}
-            onPress={() => setRemarkCategory("Income")}
-          >
-            <Text style={styles.buttonText}>{translate("income")}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              remarkCategory === "Expenses" && styles.selectedButton,
-            ]}
-            onPress={() => setRemarkCategory("Expenses")}
-          >
-            <Text style={styles.buttonText}>{translate("expenses")}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              remarkCategory === "Other" && styles.selectedButton,
-            ]}
-            onPress={() => setModalVisibleFeature(true)}
-          >
-            <Text style={styles.buttonText}>{translate("other")}</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={{color: "#fff"}}>{translate("selectSubcategory")}:</Text>
-        <View style={styles.categoryList}>
-          {(remarkCategory === "Income"
-            ? incomeCategories
-            : expenseCategories
-          ).map((category) => (
+        <View style={styles.container}>
+          <View style={styles.categoryButtons}>
             <TouchableOpacity
-              key={category}
               style={[
-                styles.subCategoryButton,
-                remarkSubCategory === category && styles.selectedSubCategory,
+                styles.button,
+                remarkCategory === "Income" && styles.selectedButton,
               ]}
-              onPress={() => setRemarkSubCategory(category)}
+              onPress={() => setRemarkCategory("Income")}
             >
-              {/* Render icons for specific categories */}
-              {category === translate("salary") && (
-                <Icon
-                  name="money"
-                  size={20}
-                  color="#fff"
-                  style={styles.icon}
-                />
-              )}
-              {category === translate("other") && (
-                <Icon
-                  name="th-large"
-                  size={20}
-                  color="#fff"
-                  style={styles.icon}
-                />
-              )}
-              {category === translate("reward") && (
-                <Icon
-                  name="credit-card"
-                  size={20}
-                  color="#fff"
-                  style={styles.icon}
-                />
-              )}
-              {category === translate("saving") && (
-                <Icon
-                  name="bank"
-                  size={20}
-                  color="#fff"
-                  style={styles.icon}
-                />
-              )}
-              {category === translate("gift") && (
-                <Icon
-                  name="gift"
-                  size={20}
-                  color="#fff"
-                  style={styles.icon}
-                />
-              )}
-              {category === translate("inves") && (
-                <Icon
-                  name="line-chart"
-                  size={20}
-                  color="#fff"
-                  style={styles.icon}
-                />
-              )}
-              {category === translate("food") && (
-                <Icon
-                  name="cutlery"
-                  size={20}
-                  color="#fff"
-                  style={styles.icon}
-                />
-              )}
-              {category === translate("transport") && (
-                <Icon
-                  name="car"
-                  size={20}
-                  color="#fff"
-                  style={styles.icon}
-                />
-              )}
-              {category === translate("rent") && (
-                <Icon
-                  name="home"
-                  size={20}
-                  color="#fff"
-                  style={styles.icon}
-                />
-              )}
-              {category === translate("play") && (
-                <Icon
-                  name="gamepad"
-                  size={20}
-                  color="#fff"
-                  style={styles.icon}
-                />
-              )}
-              {category === translate("health") && (
-                <Icon
-                  name="heartbeat"
-                  size={20}
-                  color="#fff"
-                  style={styles.icon}
-                />
-              )}
-              {category === translate("transfer") && (
-                <Icon
-                  name="exchange"
-                  size={20}
-                  color="#fff"
-                  style={styles.icon}
-                />
-              )}
-              <Text style={styles.buttonTextCategory}>{category}</Text>
+              <Text style={styles.buttonText}>{translate("income")}</Text>
             </TouchableOpacity>
-          ))}
-        </View>
-        <Text style={{color: "#fff"}}>{translate("date")}:</Text>
-        <TouchableOpacity
-          style={styles.inputDate}
-          onPress={() => setDatePickerVisibility(true)}
-        >
-          <Text style={styles.dateValue}>
-            {date ? date : translate("selectDate")}
+            <TouchableOpacity
+              style={[
+                styles.button,
+                remarkCategory === "Expenses" && styles.selectedButton,
+              ]}
+              onPress={() => setRemarkCategory("Expenses")}
+            >
+              <Text style={styles.buttonText}>{translate("expenses")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                remarkCategory === "Other" && styles.selectedButton,
+              ]}
+              onPress={() => setModalVisibleFeature(true)}
+            >
+              <Text style={styles.buttonText}>{translate("other")}</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={{ color: "#fff" }}>
+            {translate("selectSubcategory")}:
           </Text>
-        </TouchableOpacity>
-        <DateTimePickerModal
-          isVisible={isDatePickerVisible}
-          mode="date"
-          onConfirm={handleDateConfirm}
-          onCancel={handleDateCancel}
-        />
-        <Text style={{color: "#fff"}}>{translate("remark")}:</Text>
-        <TextInput
-          placeholder={translate("remark")}
-          style={styles.input}
-          value={remark}
-          onChangeText={setRemark}
-          placeholderTextColor="#fff"
-        ></TextInput>
-
-       
-        <View>
-          <Text>{translate("amount")}:</Text>
-           <View style={styles.row}>
-           <TextInput
-            style={styles.inputCalculater}
-            value={input} 
-            onChangeText={setInput}
-            keyboardType="numeric"
-            placeholder="0"
-            editable={false} 
-            pointerEvents="none" 
-            placeholderTextColor="#fff"
+          <View style={styles.categoryList}>
+            {(remarkCategory === "Income"
+              ? incomeCategories
+              : expenseCategories
+            ).map((category) => (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.subCategoryButton,
+                  remarkSubCategory === category && styles.selectedSubCategory,
+                ]}
+                onPress={() => setRemarkSubCategory(category)}
+              >
+                {/* Render icons for specific categories */}
+                {category === translate("salary") && (
+                  <Icon
+                    name="money"
+                    size={20}
+                    color="#fff"
+                    style={styles.icon}
+                  />
+                )}
+                {category === translate("other") && (
+                  <Icon
+                    name="th-large"
+                    size={20}
+                    color="#fff"
+                    style={styles.icon}
+                  />
+                )}
+                {category === translate("reward") && (
+                  <Icon
+                    name="credit-card"
+                    size={20}
+                    color="#fff"
+                    style={styles.icon}
+                  />
+                )}
+                {category === translate("saving") && (
+                  <Icon
+                    name="bank"
+                    size={20}
+                    color="#fff"
+                    style={styles.icon}
+                  />
+                )}
+                {category === translate("gift") && (
+                  <Icon
+                    name="gift"
+                    size={20}
+                    color="#fff"
+                    style={styles.icon}
+                  />
+                )}
+                {category === translate("inves") && (
+                  <Icon
+                    name="line-chart"
+                    size={20}
+                    color="#fff"
+                    style={styles.icon}
+                  />
+                )}
+                {category === translate("food") && (
+                  <Icon
+                    name="cutlery"
+                    size={20}
+                    color="#fff"
+                    style={styles.icon}
+                  />
+                )}
+                {category === translate("transport") && (
+                  <Icon name="car" size={20} color="#fff" style={styles.icon} />
+                )}
+                {category === translate("rent") && (
+                  <Icon
+                    name="home"
+                    size={20}
+                    color="#fff"
+                    style={styles.icon}
+                  />
+                )}
+                {category === translate("play") && (
+                  <Icon
+                    name="gamepad"
+                    size={20}
+                    color="#fff"
+                    style={styles.icon}
+                  />
+                )}
+                {category === translate("health") && (
+                  <Icon
+                    name="heartbeat"
+                    size={20}
+                    color="#fff"
+                    style={styles.icon}
+                  />
+                )}
+                {category === translate("transfer") && (
+                  <Icon
+                    name="exchange"
+                    size={20}
+                    color="#fff"
+                    style={styles.icon}
+                  />
+                )}
+                <Text style={styles.buttonTextCategory}>{category}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={{ color: "#fff" }}>{translate("date")}:</Text>
+          <TouchableOpacity
+            style={styles.inputDate}
+            onPress={() => setDatePickerVisibility(true)}
+          >
+            <Text style={styles.dateValue}>
+              {date ? date : translate("selectDate")}
+            </Text>
+          </TouchableOpacity>
+          <DateTimePickerModal
+            isVisible={isDatePickerVisible}
+            mode="date"
+            onConfirm={handleDateConfirm}
+            onCancel={handleDateCancel}
           />
-            {["/", "Del"].map((item) => (
-              <TouchableOpacity
-                key={item}
-                style={styles.buttonCalculator}
-                onPress={() => handlePress(item)}
-              >
-                <Text style={styles.buttonTextCalculator}>{item}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.row}>
-            {["7", "8", "9", "*"].map((item) => (
-              <TouchableOpacity
-                key={item}
-                style={styles.buttonCalculator}
-                onPress={() => handlePress(item)}
-              >
-                <Text style={styles.buttonTextCalculator}>{item}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.row}>
-            {["4", "5", "6", "-"].map((item) => (
-              <TouchableOpacity
-                key={item}
-                style={styles.buttonCalculator}
-                onPress={() => handlePress(item)}
-              >
-                <Text style={styles.buttonTextCalculator}>{item}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.row}>
-            {["1", "2", "3", "+"].map((item) => (
-              <TouchableOpacity
-                key={item}
-                style={styles.buttonCalculator}
-                onPress={() => handlePress(item)}
-              >
-                <Text style={styles.buttonTextCalculator}>{item}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.row}>
-            {["0", ".", "C", "="].map((item) => (
-              <TouchableOpacity
-                key={item}
-                style={styles.buttonCalculator}
-                onPress={() => handlePress(item)}
-              >
-                <Text style={styles.buttonTextCalculator}>{item}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </View>
-      <TouchableOpacity onPress={handleSubmit} style={styles.buttonSubmit}>
-          <Text style={styles.buttonText}>{translate("submit")}</Text>
-        </TouchableOpacity>
+          <Text style={{ color: "#fff" }}>{translate("remark")}:</Text>
+          <TextInput
+            placeholder={translate("remark")}
+            style={styles.input}
+            value={remark}
+            onChangeText={setRemark}
+            placeholderTextColor="#fff"
+          ></TextInput>
 
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{translate("targetYear")}</Text>
-            <TextInput
-              style={styles.inputModal}
-              value={dailyLimit}
-              onChangeText={setDailyLimit}
-              placeholder="Enter value"
-              keyboardType="numeric"
-              placeholderTextColor="#fff"
-            />
-            <TouchableOpacity
-              onPress={handleSaveLimit}
-              style={styles.saveButton}
-            >
-              <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setModalVisible(false)}
-              style={styles.cancelButton}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisibleSaving}
-        onRequestClose={() => setModalVisibleSaving(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Planning Saving</Text>
-            <TextInput
-              style={styles.inputModal}
-              value={targetValue}
-              onChangeText={setTargetValue}
-              placeholder="Enter value"
-              keyboardType="numeric"
-              placeholderTextColor="#fff"
-            />
-            <TouchableOpacity
-              onPress={handleSaveTarget}
-              style={styles.saveButton}
-            >
-              <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setModalVisibleSaving(false)}
-              style={styles.cancelButton}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-      <Modal
-       animationType="slide"
-       transparent={true}
-       visible={modalVisibleFeature}
-       onRequestClose={() => setModalVisibleFeature(false)}
-       >
-        <View style={styles.featureDesignContain}>
-        <View style={styles.modalContent}>
-        <Text style={styles.modalTitleFeature}>{translate("otherSetting")}</Text>
-          <View style={styles.featureButtonDesign}>
-          <TouchableOpacity
-            onPress={()=> setModalVisible(true)}>
-            <Text style={styles.modalTitleFeature}>{translate("monthlyBudget")}</Text>
-          </TouchableOpacity>
-          </View>
-          <View style={styles.featureButtonDesign}>
-          <TouchableOpacity
-          onPress={()=> setModalVisibleSaving(true)}>
-            <Text style={styles.modalTitleFeature}>{translate("targetYear")}</Text>
-          </TouchableOpacity>
-          </View>
-          <View style={styles.featureButtonDesignClose}>
-          <TouchableOpacity
-              onPress={() => setModalVisibleFeature(false)}
-              style={styles.cancelButton}
-            >
-              <Text style={styles.cancelButtonTextFeature}>X</Text>
-            </TouchableOpacity>
+          <View>
+            <Text>{translate("amount")}:</Text>
+            <View style={styles.row}>
+              <TextInput
+                style={styles.inputCalculater}
+                value={input}
+                onChangeText={setInput}
+                keyboardType="numeric"
+                placeholder="0"
+                editable={false}
+                pointerEvents="none"
+                placeholderTextColor="#fff"
+              />
+              {["/", "Del"].map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={styles.buttonCalculator}
+                  onPress={() => handlePress(item)}
+                >
+                  <Text style={styles.buttonTextCalculator}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.row}>
+              {["7", "8", "9", "*"].map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={styles.buttonCalculator}
+                  onPress={() => handlePress(item)}
+                >
+                  <Text style={styles.buttonTextCalculator}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.row}>
+              {["4", "5", "6", "-"].map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={styles.buttonCalculator}
+                  onPress={() => handlePress(item)}
+                >
+                  <Text style={styles.buttonTextCalculator}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.row}>
+              {["1", "2", "3", "+"].map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={styles.buttonCalculator}
+                  onPress={() => handlePress(item)}
+                >
+                  <Text style={styles.buttonTextCalculator}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.row}>
+              {["0", ".", "C", "="].map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={styles.buttonCalculator}
+                  onPress={() => handlePress(item)}
+                >
+                  <Text style={styles.buttonTextCalculator}>{item}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
         </View>
-       </Modal>
-       </SafeAreaView>
+        <TouchableOpacity onPress={handleSubmit} style={styles.buttonSubmit}>
+          <Text style={styles.buttonText}>{translate("submit")}</Text>
+        </TouchableOpacity>
+
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{translate("monthlyBudget")}</Text>
+              <TextInput
+                style={styles.inputModal}
+                value={dailyLimit}
+                onChangeText={setDailyLimit}
+                placeholder="Enter value"
+                keyboardType="numeric"
+                placeholderTextColor="#fff"
+              />
+              <TouchableOpacity
+                onPress={handleSaveLimit}
+                style={styles.saveButton}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={styles.cancelButton}
+              >
+                <Text style={styles.cancelButtonText}>X</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisibleSaving}
+          onRequestClose={() => setModalVisibleSaving(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}> {translate("targetYear")}</Text>
+              <TextInput
+                style={styles.inputModal}
+                value={targetValue}
+                onChangeText={setTargetValue}
+                placeholder="Enter value"
+                keyboardType="numeric"
+                placeholderTextColor="#fff"
+              />
+              <TouchableOpacity
+                onPress={handleSaveTarget}
+                style={styles.saveButton}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setModalVisibleSaving(false)}
+                style={styles.cancelButton}
+              >
+                <Text style={styles.cancelButtonText}>X</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisibleFeature}
+          onRequestClose={() => setModalVisibleFeature(false)}
+        >
+          <View style={styles.featureDesignContain}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitleFeature}>
+                {translate("otherSetting")}
+              </Text>
+              <View style={styles.featureButtonDesign}>
+                <TouchableOpacity onPress={() => setModalVisible(true)}>
+                  <Text style={styles.modalTitleFeature}>
+                    {translate("monthlyBudget")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.featureButtonDesign}>
+                <TouchableOpacity onPress={() => setModalVisibleSaving(true)}>
+                  <Text style={styles.modalTitleFeature}>
+                    {translate("targetYear")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.featureButtonDesign}>
+                <TouchableOpacity onPress={() => setModalVisibleRate(true)}>
+                  <Text style={styles.modalTitleFeature}>
+                    {"Calculate Rate Loan"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.featureButtonDesignClose}>
+                <TouchableOpacity
+                  onPress={() => setModalVisibleFeature(false)}
+                  style={styles.cancelButton}
+                >
+                  <Text style={styles.cancelButtonTextFeature}>X</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisibleRate}
+          onRequestClose={() => setModalVisibleRate(false)}
+        >
+          <View style={styles.modalContainerFullPage}>
+            <View style={styles.modalContentRate}>
+              <Text style={styles.header}>Loan Calculator</Text>
+
+              {/* Input Fields */}
+              <Text style={{ color: "#fff" }}>Principal Amount (RM)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Principal Amount (RM)"
+                placeholderTextColor="#888"
+                keyboardType="numeric"
+                value={principal}
+                onChangeText={setPrincipal}
+              />
+              <Text style={{ color: "#fff" }}>Annual Interest Rate (%)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Annual Interest Rate (%)"
+                placeholderTextColor="#888"
+                keyboardType="numeric"
+                value={rate}
+                onChangeText={setRate}
+              />
+              <Text style={{ color: "#fff" }}>Loan Tenure (Years)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Loan Tenure (Years)"
+                placeholderTextColor="#888"
+                keyboardType="numeric"
+                value={years}
+                onChangeText={setYears}
+              />
+
+              <TouchableOpacity
+                style={styles.button}
+                onPress={calculateHomeLoan}
+              >
+                <Text style={styles.buttonText}>Calculate</Text>
+              </TouchableOpacity>
+              <Text style={styles.resultText}>Monthly Payment: </Text>
+              <Text style={styles.resultText}>
+                {monthlyPayment ? `RM${monthlyPayment}` : null}
+              </Text>
+
+              <TouchableOpacity
+                style={[styles.closeButtonLoan]}
+                onPress={() => handleCloseModal()}
+              >
+                <Text style={styles.buttonTextLoan}>X</Text>
+              </TouchableOpacity>
+              <Text style={{ color: "#fff" }}>*此计算器仅供参考。</Text>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
     </ScrollView>
   );
 };
@@ -810,7 +910,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     color: "#ffffff",
     fontSize: 20,
-    marginBottom: 10,
+    marginBottom: 20,
     textAlign: "center",
   },
   inputModal: {
@@ -838,11 +938,14 @@ const styles = StyleSheet.create({
   cancelButton: {
     marginTop: 10,
     alignItems: "center",
+    position: "absolute",
+    top: 5,
+    right: 15,
   },
   cancelButtonText: {
     color: "#ffffff",
-    fontSize: 16,
-  },
+    fontSize: 25,
+    },
   // Calculator Design
   inputCalculater: {
     borderColor: "#ccc",
@@ -909,6 +1012,42 @@ const styles = StyleSheet.create({
   cancelButtonTextFeature: {
     color: "#fff",
     fontSize: 25,
+  },
+  header: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
+  closeButtonLoan: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+  },
+  buttonTextLoan: {
+    textAlign: "center",
+    fontSize: 25,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  resultText: {
+    color: "#fff",
+    fontSize: 18,
+  },
+  modalContainerFullPage: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    position: "relative",
+  },
+  modalContentRate: {
+    backgroundColor: "#000000",
+    padding: 20,
+    width: "90%",
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#f8b400",
   },
 });
 
