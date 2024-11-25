@@ -10,6 +10,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { RouteProp } from "@react-navigation/native";
@@ -105,10 +106,6 @@ const MainPage = () => {
     }, [])
   );
 
-  const translate = (key: TranslationKeys): string => {
-    return translations[language][key] || key;
-  };
-
   const fetchDisplayData = async () => {
     const { data, error } = await supabase
       .from("cash_flows")
@@ -122,6 +119,21 @@ const MainPage = () => {
     }
     setLoading(false);
   };
+  const handleDelete = async (id: any) => {
+    const { error } = await supabase
+      .from("cash_flows")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error deleting item:", error);
+    } else {
+      Alert.alert("Success", "Record has been delete");
+      closeModal()
+      setDisplayData((prevData) => prevData.filter((item) => item.id !== id));
+    }
+  };
+
 
   const calculateTotals = () => {
     let totalIncome = 0;
@@ -560,6 +572,9 @@ const MainPage = () => {
             <TouchableOpacity onPress={closeModal}>
               <Text style={styles.valueTextDefault}>Close</Text>
             </TouchableOpacity>
+            <TouchableOpacity  onPress={() => handleDelete(selectedItem?.id || "")}>
+              <Text style={styles.valueTextDefault}>Delete</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -773,7 +788,7 @@ const styles = StyleSheet.create({
   },
   modalDetailsContent: {
     backgroundColor: "#000000",
-    width: "80%",
+    width: "90%",
     padding: 20,
     borderRadius: 20,
     alignItems: "center",

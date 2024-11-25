@@ -2,6 +2,7 @@
   "en": {
     "settingsScreen": "Settings Screen",
     "logout": "Logout",
+    "login": "Login",
     "welcomeUser": "Welcome, {email}",
     "profile": "Profile",
     "displayRecord": "Display Record",
@@ -45,11 +46,14 @@
     "expensesType": " Expenses Category",
     "target": "Target",
     "targetYear": "Target Year Saving",
-    "otherSetting": "Other Feacture"
+    "otherSetting": "Other Feacture",
+    "report": "Report",
+    "register": "Register"
   },
   "zh": {
     "settingsScreen": "设置界面",
     "logout": "退出登录",
+    "login": "登录",
     "welcomeUser": "欢迎, {email}",
     "profile": "个人资料",
     "displayRecord": "显示记录",
@@ -93,6 +97,8 @@
     "expensesType": "支出分类",
     "target": "目标",
     "targetYear": "全年目标",
-    "otherSetting": "功能"
+    "otherSetting": "功能",
+    "report": "报告",
+    "register": "注册"
   }
 }

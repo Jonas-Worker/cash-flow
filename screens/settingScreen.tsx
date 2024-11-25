@@ -6,14 +6,17 @@ import {
   Alert,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView
+  SafeAreaView,
+  TextInput,
+  Modal
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import translations from "../translations.json";
-import Modal from "react-native-modal";
+
 import { useRoute } from "@react-navigation/native";
 import { RouteProp } from "@react-navigation/native";
 import { themes } from "./themColor"; 
+import * as MailComposer from 'expo-mail-composer';
 // Define the structure of the translations
 type Language = "en" | "zh";
 type TranslationKeys = "settingsScreen" | "logout" | "profile";
@@ -37,6 +40,9 @@ const SettingsScreen = ({ navigation }: any) => {
   const [popupMessageDetails, setPopupMessageDetails] = useState("");
   const route = useRoute<RouteProp<RootParamList, "MainPage">>();
   const email = route.params?.email || "No email provided";
+  const [subject, setSubject] = useState("");
+  const [question, setQuestion] = useState("");
+  const [modalVisible, setModalVisible] = useState(false);
   // const [theme, setTheme] = useState<"black" | "white">("black");
 
   // const toggleTheme = () => {
@@ -90,6 +96,28 @@ const SettingsScreen = ({ navigation }: any) => {
     return translations[language][key] || key;
   };
 
+  const handleSendEmail = async () => {
+    const email = "jonasworker1861@gmail.com"; // Recipient's email
+
+    // Set up the email content
+    const options = {
+      recipients: [email],
+      subject: subject, // Subject of the email
+      body: question,  // Body of the email (Question)
+    };
+
+    // Attempt to send the email
+    const result = await MailComposer.composeAsync(options);
+
+    if (result.status === 'sent') {
+      console.log("Email sent successfully");
+    } else {
+      console.log("Failed to send email", result);
+    }
+
+    setModalVisible(false); // Close modal after sending
+  };
+
   return (
     <SafeAreaView style={[styles.container]}>
       <View style={styles.languageButtonsContainer}>
@@ -114,12 +142,19 @@ const SettingsScreen = ({ navigation }: any) => {
       >
         <Text style={styles.logoutButtonText}>{translate("profile")}</Text>
       </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={() => setModalVisible(true)}
+      >
+        <Text style={styles.logoutButtonText}>Email</Text>
+      </TouchableOpacity>
+
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>{translate("logout")}</Text>
       </TouchableOpacity>
 
-      <Modal isVisible={popupMessage}>
+      <Modal visible={popupMessage}>
         <View style={styles.modalContent}>
           <Text style={styles.titleContent}>{popupMessageTitle}</Text>
           <Text style={styles.detailsContent}>{popupMessageDetails}</Text>
@@ -132,6 +167,52 @@ const SettingsScreen = ({ navigation }: any) => {
           >
             <Text style={styles.buttonText}>Close</Text>
           </TouchableOpacity>
+        </View>
+      </Modal>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Send Email</Text>
+
+            {/* Subject Input */}
+            <TextInput
+              style={styles.input}
+              placeholder="Subject"
+              value={subject}
+              onChangeText={(text) => setSubject(text)}
+            />
+
+            {/* Question Input */}
+            <TextInput
+              style={[styles.input, styles.questionInput]}
+              placeholder="Question"
+              multiline
+              numberOfLines={4}
+              value={question}
+              onChangeText={(text) => setQuestion(text)}
+            />
+
+            {/* Buttons */}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={styles.sendButton}
+                onPress={handleSendEmail}
+              >
+                <Text style={styles.buttonText}>Send</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -209,6 +290,49 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 15,
     color: "#FFFFFF",
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 15,
+  },
+  input: {
+    width: "100%",
+    height: 40,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  questionInput: {
+    height: 80,
+    textAlignVertical: "top",
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  sendButton: {
+    backgroundColor: "#28a745",
+    padding: 10,
+    borderRadius: 5,
+    width: "48%",
+    alignItems: "center",
+  },
+  cancelButton: {
+    backgroundColor: "#dc3545",
+    padding: 10,
+    borderRadius: 5,
+    width: "48%",
+    alignItems: "center",
   },
 });
 

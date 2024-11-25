@@ -33,7 +33,6 @@ const LoginScreen = ({ navigation }: any) => {
           return;
         }
       }
-      // Session expired or not found, stay on the login screen
     };
 
     checkSession();
@@ -73,6 +72,7 @@ const LoginScreen = ({ navigation }: any) => {
             value={username}
             onChangeText={setUsername}
             keyboardType="email-address"
+            placeholderTextColor="#fff"
           />
           <TextInput
             style={styles.input}
@@ -80,12 +80,13 @@ const LoginScreen = ({ navigation }: any) => {
             secureTextEntry
             value={password}
             onChangeText={setPassword}
+            placeholderTextColor="#fff"
           />
           <TouchableOpacity style={styles.button} onPress={handleLogin}>
             <Text style={styles.buttonText}>Login</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleNavigation}>
-            <Text>
+            <Text style={styles.textResgiter}>
               Don't have an account?{" "}
               <Text style={styles.registerText}>Register</Text>
             </Text>
@@ -100,20 +101,24 @@ const styles = StyleSheet.create({
   loginContainer: {
     flex: 1,
     justifyContent: "center",
-    backgroundColor: "#fce9db",
+    backgroundColor: "#000",
   },
   container: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     display: "flex",
     paddingTop: 30,
     paddingBottom: 10,
     marginHorizontal: 10,
+    borderWidth: 2,
+    borderColor: "#f8b400",
+    borderRadius: 20,
   },
   loginTitle: {
     fontSize: 25,
     fontWeight: "bold",
     textAlign: "center",
     paddingBottom: 10,
+    color: "#fff",
   },
   bodyContainer: {
     paddingHorizontal: 10,
@@ -122,10 +127,11 @@ const styles = StyleSheet.create({
   input: {
     height: 40,
     borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
+    borderBottomColor: "#fff",
     marginBottom: 15,
     paddingHorizontal: 5,
     fontSize: 16,
+    color: "#fff",
   },
   button: {
     backgroundColor: "#00BFFF",
@@ -148,6 +154,9 @@ const styles = StyleSheet.create({
     color: "red",
     fontWeight: "bold",
   },
+  textResgiter: {
+    color: "#fff"
+  }
 });
 
 export default LoginScreen;
