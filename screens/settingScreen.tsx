@@ -2,8 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  Button,
-  Alert,
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
@@ -12,7 +10,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import translations from "../translations.json";
-
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute } from "@react-navigation/native";
 import { RouteProp } from "@react-navigation/native";
 import { themes } from "./themColor"; 
@@ -119,102 +117,113 @@ const SettingsScreen = ({ navigation }: any) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container]}>
-      <View style={styles.languageButtonsContainer}>
-        <TouchableOpacity
-          style={[styles.languageButton]}
-          onPress={() => changeLanguage("en")}
-        >
-          <Text style={[styles.languageButtonText]}>en</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.languageButton}
-          onPress={() => changeLanguage("zh")}
-        >
-          <Text style={[styles.languageButtonText]}>zh</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.title}>{translate("settingsScreen")}</Text>
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={() => navigation.navigate("Profile", { email })}
+    <SafeAreaView style={{ flex: 1 }}>
+      <LinearGradient
+        colors={["rgba(2,0,36,1)", "rgba(14,14,113,1)", "rgba(0,212,255,1)"]}
+        start={{ x: 0, y: 1 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.container}
       >
-        <Text style={styles.logoutButtonText}>{translate("profile")}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={() => setModalVisible(true)}
-      >
-        <Text style={styles.logoutButtonText}>Email</Text>
-      </TouchableOpacity>
-
-
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>{translate("logout")}</Text>
-      </TouchableOpacity>
-
-      <Modal visible={popupMessage}>
-        <View style={styles.modalContent}>
-          <Text style={styles.titleContent}>{popupMessageTitle}</Text>
-          <Text style={styles.detailsContent}>{popupMessageDetails}</Text>
+        <View style={styles.languageButtonsContainer}>
           <TouchableOpacity
-            style={styles.butonDesign}
-            onPress={() => {
-              setPopupMessage(false);
-              navigation.navigate("Login");
-            }}
+            style={[styles.languageButton]}
+            onPress={() => changeLanguage("en")}
           >
-            <Text style={styles.buttonText}>Close</Text>
+            <Text style={[styles.languageButtonText]}>en</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.languageButton}
+            onPress={() => changeLanguage("zh")}
+          >
+            <Text style={[styles.languageButtonText]}>zh</Text>
           </TouchableOpacity>
         </View>
-      </Modal>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Send Email</Text>
 
-            {/* Subject Input */}
-            <TextInput
-              style={styles.input}
-              placeholder="Subject"
-              value={subject}
-              onChangeText={(text) => setSubject(text)}
-            />
+        {/* Settings Options */}
+        <Text style={styles.title}>Settings</Text>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={() => navigation.navigate("Profile")}
+        >
+          <Text style={styles.logoutButtonText}>Profile</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={() => setModalVisible(true)}
+        >
+          <Text style={styles.logoutButtonText}>Email</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
 
-            {/* Question Input */}
-            <TextInput
-              style={[styles.input, styles.questionInput]}
-              placeholder="Question"
-              multiline
-              numberOfLines={4}
-              value={question}
-              onChangeText={(text) => setQuestion(text)}
-            />
-
-            {/* Buttons */}
-            <View style={styles.buttonContainer}>
+        {/* Popup Message Modal */}
+        <Modal visible={popupMessage} animationType="slide" transparent={true}>
+          <View style={styles.modalContentPop}>
+            <View style={styles.modalContent}>
+              <Text style={styles.titleContent}>{popupMessageTitle}</Text>
+              <Text style={styles.detailsContent}>{popupMessageDetails}</Text>
               <TouchableOpacity
-                style={styles.sendButton}
-                onPress={handleSendEmail}
+                style={styles.butonDesign}
+                onPress={() => {
+                  setPopupMessage(false);
+                  navigation.navigate("Login");
+                }}
               >
-                <Text style={styles.buttonText}>Send</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.buttonText}>Cancel</Text>
+                <Text style={styles.buttonText}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+
+        {/* Email Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContentEmail}>
+              <Text style={styles.modalTitle}>Send Email</Text>
+
+              {/* Subject Input */}
+              <TextInput
+                style={styles.input}
+                placeholder="Subject"
+                value={subject}
+                onChangeText={(text) => setSubject(text)}
+              />
+
+              {/* Question Input */}
+              <TextInput
+                style={[styles.input, styles.questionInput]}
+                placeholder="Question"
+                multiline
+                numberOfLines={4}
+                value={question}
+                onChangeText={(text) => setQuestion(text)}
+              />
+
+              {/* Buttons */}
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={styles.sendButton}
+                  onPress={handleSendEmail}
+                >
+                  <Text style={styles.buttonText}>Send</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+        </LinearGradient>
     </SafeAreaView>
   );
 };
@@ -226,7 +235,6 @@ const styles = StyleSheet.create({
     position: "relative",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#000",
   },
   title: {
     fontSize: 18,
@@ -263,7 +271,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 25,
     color: "#fff"
   },
+  modalContentPop: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+  },
   modalContent: {
+    backgroundColor: "#000000",
+    width: "90%",
+    padding: 20,
+    borderRadius: 20,
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#f8b400",
+  },
+  modalContentEmail: {
     backgroundColor: "white",
     padding: 20,
     borderRadius: 20,
@@ -273,10 +296,12 @@ const styles = StyleSheet.create({
     fontSize: 25,
     fontWeight: "bold",
     paddingBottom: 10,
+    color: "#fff",
   },
   detailsContent: {
     fontSize: 20,
     paddingBottom: 10,
+    color: "#fff",
   },
   butonDesign: {
     padding: 10,

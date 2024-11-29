@@ -24,6 +24,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import translations from "../translations.json";
 import { Calendar } from "react-native-calendars";
 import { useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Define the structure of the translations
 type Language = "en" | "zh";
@@ -531,6 +532,12 @@ const DisplayScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.displayContainer}>
+       <LinearGradient
+        colors={["rgba(2,0,36,1)", "rgba(14,14,113,1)", "rgba(0,212,255,1)"]}
+        start={{ x: 0, y: 1 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.container}
+      >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.container}>
           <View style={styles.totalContainer}>
@@ -860,6 +867,7 @@ const DisplayScreen = ({ navigation }: any) => {
         onConfirm={handleDateConfirm}
         onCancel={handleDateCancel}
       />
+      </LinearGradient>
     </SafeAreaView>
   );
 };

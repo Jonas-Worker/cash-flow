@@ -12,11 +12,11 @@ import SettingsScreen from './screens/settingScreen';
 import RegisterScreen from './screens/registerScreen';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import translations from "./translations.json";
-import * as Notifications from 'expo-notifications';
+// import * as Notifications from 'expo-notifications';
 
 const Stack = createStackNavigator();
 type Language = "en" | "zh";
-type TranslationKeys = "settingsScreen" | "logout" | "login" | "report" | "profile" | "register";
+type TranslationKeys = "settingsScreen" | "logout" | "login" | "profile" | "register";
 
 const App = () => {
   const [language, setLanguage] = useState<Language>("en");
@@ -39,70 +39,83 @@ const App = () => {
     });
   }, []);
 
-  useEffect(() => {
-    // Request permission to show push notifications
-    const requestPermissions = async () => {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
-        console.log('Permission not granted for notifications');
-      }
-    };
+  // useEffect(() => {
+  //   const setupNotifications = async () => {
+  //     // 配置 Android 通知频道
+  //     if (Platform.OS === 'android') {
+  //       await Notifications.setNotificationChannelAsync('default', {
+  //         name: 'Default',
+  //         importance: Notifications.AndroidImportance.HIGH,
+  //         sound: 'default',
+  //         vibrationPattern: [0, 250, 250, 250],
+  //         lightColor: '#FF231F7C',
+  //       });
+  //     }
 
-    requestPermissions();
+  //     // 请求通知权限
+  //     const { status } = await Notifications.requestPermissionsAsync();
 
-    // Listen for notifications in the foreground
-    const notificationListener = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notification received:', notification);
-      // Handle the notification here, navigate or show modal
-    });
+  //     if (status !== 'granted') {
+  //       return;
+  //     }
 
-    // Listen for response to notifications (when the user taps on a notification)
-    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Notification response received:', response);
-    });
+  //     // 调度通知
+  //     await Notifications.scheduleNotificationAsync({
+  //       content: {
+  //         title: '今天还没记账喔～',
+  //         body: '记录今天的第一笔账',
+  //         sound: 'default',
+  //         sticky: false, 
+  //       },
+  //       trigger: {
+  //         second: 60,
+  //         repeats: false,
+  //       },
+  //     });
 
-    // Cleanup listeners when the component unmounts
-    return () => {
-      notificationListener.remove();
-      responseListener.remove();
-    };
-  }, []);
+  //   };
 
-  // This function triggers a local notification every 10 seconds
-  const triggerNotification = () => {
-    Notifications.scheduleNotificationAsync({
-      content: {
-        title: '今天还没记账喔～',
-        body: '记录今天的第一笔账',
-        sound: true,
-        vibrate: [0, 250, 250, 250],  // Vibrate pattern (in milliseconds)
-      },
-      trigger: {
-        seconds: 10,  // Trigger the notification every 10 seconds
-        repeats: true,  // Make the notification repeat
-      } as Notifications.TimeIntervalTriggerInput,  // Explicitly cast to TimeIntervalTriggerInput
-    });
-  };
+  //   setupNotifications();
 
-  useEffect(() => {
-    // Start sending notifications every 10 seconds when the app starts
-    const interval = setInterval(() => {
-      triggerNotification();
-    }, 10000);  // 10000 ms = 10 seconds
+  //   // 添加通知监听器
+  //   const subscription = Notifications.addNotificationReceivedListener(notification => {
+  //     const { title, body, data } = notification.request.content;
+    
+  //     console.log('Notification received!');
+  //     console.log('Title:', title);
+  //     console.log('Body:', body);
+  //     console.log('Data:', data);
+    
+  //   });
+    
+  //   const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+  //     const { actionIdentifier, notification } = response;
+  //     const { title, body, data } = notification.request.content;
 
-    // Cleanup interval when the component unmounts
-    return () => clearInterval(interval);
-  }, []);
+  //     console.log('Notification clicked!');
+  //     console.log('Action Identifier:', actionIdentifier);
+  //     console.log('Title:', title);
+  //     console.log('Body:', body);
+  //     console.log('Data:', data);
+
+  //     if (data && data.targetScreen) {
+  //       console.log('Navigating to:', data.targetScreen);
+  //     }
+  //   });
+  //   return () => {
+  //     subscription.remove();
+  //     responseListener.remove();
+  //   };
+  // }, []);
 
   return (
     <>
-      {/* Set the StatusBar to ensure it's visible and properly styled */}
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={false} />
       
       <NavigationContainer>
         <Stack.Navigator initialRouteName="Login">
           <Stack.Screen 
-            name={translate("login")}
+            name="Login"
             component={LoginScreen} 
             options={{ headerShown: false }} 
           />
@@ -114,7 +127,7 @@ const App = () => {
             }}
           />
           <Stack.Screen 
-            name={translate("report")}
+            name="Record"
             component={DisplayScreen} 
             options={{
               headerTitleAlign: 'center',
@@ -129,7 +142,7 @@ const App = () => {
             }}
           />
           <Stack.Screen 
-            name={translate("profile")}
+            name="Profile"
             component={ProfileScreen} 
             options={{
               headerTitleAlign: 'center',

@@ -22,7 +22,7 @@ import supabase from "../supabaseClient";
 import { PieChart } from "react-native-chart-kit";
 import { Dimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
+import { LinearGradient } from 'expo-linear-gradient';
 type Language = "en" | "zh";
 type TranslationKeys =
   | "welcomeUser"
@@ -36,7 +36,7 @@ type TranslationKeys =
 type RootParamList = {
   MainPage: { email: string };
   Profile: { email: string };
-  Record: { email: string };
+  report: { email: string };
   Insert: { email: string };
   Settings: { email: string };
 };
@@ -120,20 +120,16 @@ const MainPage = () => {
     setLoading(false);
   };
   const handleDelete = async (id: any) => {
-    const { error } = await supabase
-      .from("cash_flows")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("cash_flows").delete().eq("id", id);
 
     if (error) {
       console.error("Error deleting item:", error);
     } else {
       Alert.alert("Success", "Record has been delete");
-      closeModal()
+      closeModal();
       setDisplayData((prevData) => prevData.filter((item) => item.id !== id));
     }
   };
-
 
   const calculateTotals = () => {
     let totalIncome = 0;
@@ -379,8 +375,8 @@ const MainPage = () => {
   };
 
   const filteredGroupedData: { [key: string]: Data[] } = searchQuery.trim()
-    ? Object.entries(groupedData).reduce((acc, [date, items]) => {
-        const filteredItems = items.filter(
+    ? Object.entries(groupedData).reduce((acc, [date]) => {
+        const filteredItems = displayData.filter(
           (item) =>
             item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.cash_in.toString().includes(searchQuery.toLowerCase()) ||
@@ -420,6 +416,12 @@ const MainPage = () => {
 
   return (
     <SafeAreaView style={styles.bodyMainContent}>
+       <LinearGradient
+        colors={["rgba(2,0,36,1)", "rgba(14,14,113,1)", "rgba(0,212,255,1)"]}
+        start={{ x: 0, y: 1 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.bodyMainContent}
+      >
       <View style={styles.topNavContainer}>
         <View style={styles.topNavTextIncome}>
           <Text style={styles.valueTextDefault}>Income</Text>
@@ -438,7 +440,7 @@ const MainPage = () => {
       <View style={styles.searchDesign}>
         <TextInput
           style={styles.searchBar}
-          placeholder="Search "
+          placeholder="Search"
           value={searchQuery}
           onChangeText={handleSearchChange}
         />
@@ -459,10 +461,8 @@ const MainPage = () => {
           <View style={styles.contentBodyDesign}>
             {filteredGroupedData &&
             Object.keys(filteredGroupedData).length === 0 ? (
-              // If no records are found, display "No records found"
               <Text style={styles.noRecordsText}>No records found</Text>
             ) : (
-              // If records exist, display the SectionList
               <SectionList
                 sections={sections}
                 renderItem={renderItem}
@@ -572,26 +572,27 @@ const MainPage = () => {
             <TouchableOpacity onPress={closeModal}>
               <Text style={styles.valueTextDefault}>Close</Text>
             </TouchableOpacity>
-            <TouchableOpacity  onPress={() => handleDelete(selectedItem?.id || "")}>
+            <TouchableOpacity
+              onPress={() => handleDelete(selectedItem?.id || "")}
+            >
               <Text style={styles.valueTextDefault}>Delete</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
+      </LinearGradient>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   topNavContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "#111112",
     marginHorizontal: 10,
     marginVertical: 20,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#f8b400",
     borderRadius: 20,
   },
   balanceDisplay: {
@@ -599,6 +600,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: 10,
     marginBottom: 10,
+    width: "30%",
   },
   topNavTextIncome: {
     padding: 5,
@@ -682,13 +684,13 @@ const styles = StyleSheet.create({
   },
   bodyMainContent: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#F9FAFC",
   },
   searchDesign: {
     position: "relative",
   },
   searchBar: {
-    backgroundColor: "#fff",
+    backgroundColor: "#B0B0B0",
     alignSelf: "flex-end",
     right: 10,
     justifyContent: "flex-end",
@@ -710,19 +712,20 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   contentBodyDesign: {
+    width: "90%",
+    margin: "auto",
     flex: 1,
     justifyContent: "center",
     alignContent: "center",
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "#111112",
   },
   flatListContent: {
-  paddingTop: 5,
-  marginVertical: 10,
-  marginHorizontal: 10,
-  paddingBottom: 80,
-
-},
+    paddingTop: 5,
+    marginVertical: 10,
+    marginHorizontal: 10,
+    paddingBottom: 80,
+  },
   navContainer: {
     backgroundColor: "#000000",
     paddingVertical: 5,
@@ -736,7 +739,6 @@ const styles = StyleSheet.create({
     borderColor: "#f8b400",
     height: 55,
     zIndex: 100,
-    
   },
   iconContainer: {
     flexDirection: "row",
@@ -773,8 +775,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 20,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
-    borderColor: "#f8b400", 
-    borderWidth: 2, 
   },
   text: {
     fontSize: 14,
